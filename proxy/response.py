@@ -1,22 +1,33 @@
 from enum import Enum
-from functools import cached_property
 
 from aiohttp import client, web
 
 
 class ResponseType(Enum):
+    """Response type enumeration"""
+
     STREAM = "STREAM"
     BASE = "BASE"
 
+
 class ProxyResponse:
-    def __init__(self, in_req: web.Request, in_resp: client.ClientResponse, proxy_attributes: dict = None):
+    """Proxy response object"""
+
+    def __init__(
+        self,
+        in_req: web.Request,
+        in_resp: client.ClientResponse,
+        proxy_attributes: dict = None,
+    ):
         self.in_req = in_req
         self.in_resp = in_resp
         self.proxy_attributes = proxy_attributes
         self._response: web.StreamResponse | None = None
 
     @property
-    def response(self) -> web.StreamResponse | web.Response:
+    def response(
+        self,
+    ) -> web.StreamResponse | web.Response:
         if not self._response:
             raise ValueError("Response has not been set")
         return self._response
@@ -53,6 +64,7 @@ class ProxyResponse:
             headers=self.in_resp.headers,
             content_type=content_type,
             charset=charset,
-            text=text,  # We load just text, web.Response takes care of encoding if needed
+            # We load just text, web.Response takes care of encoding if needed
+            text=text,
         )
         self._response = resp

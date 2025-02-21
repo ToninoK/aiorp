@@ -11,4 +11,41 @@ dependencies = [
 [dependency-groups]
 dev = [
     "aiohttp-devtools>=1.1.2",
+    "black>=25.1.0",
+    "pre-commit>=4.1.0",
+]
+
+[tool.isort]
+# config compatible with Black
+line_length = 88
+multi_line_output = 3
+default_section = "THIRDPARTY"
+honor_noqa = true
+include_trailing_comma = true
+known_third_party = ["aiohttp", "multidict", "yarl"]
+atomic = true
+
+[tool.pylint.master]
+jobs = 0
+
+[tool.pylint.message_control]
+max-line-length = 99
+disable = [
+    "import-error",
+    "missing-module-docstring",
+    "missing-function-docstring",
+    "unsupported-binary-operation",
+    "raise-missing-from",
+    "invalid-name",
+    "too-many-arguments",
+    "unused-argument",
+]
+
+[tool.pylint.reports]
+output-format = "colorized"
+
+[tool.pylint.format]
+logging-modules = [
+  "logging",
+  "structlog"
 ]

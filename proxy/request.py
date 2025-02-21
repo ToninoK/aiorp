@@ -1,11 +1,11 @@
 from aiohttp import client, web
-from propcache import cached_property
-from yarl import URL
-
 from multidict import CIMultiDict
+from yarl import URL
 
 
 class ProxyRequest:
+    """Proxy request object"""
+
     HOP_BY_HOP_HEADERS = [
         "connection",
         "keep-alive",
@@ -44,7 +44,11 @@ class ProxyRequest:
         # Set the X-Forwarded-For header
         self.set_x_forwarded_for()
 
-    async def execute(self, session: client.ClientSession, **kwargs):
+    async def execute(
+        self,
+        session: client.ClientSession,
+        **kwargs,
+    ):
         await self.load_content()
         return await session.request(
             method=self.in_req.method,
@@ -52,21 +56,24 @@ class ProxyRequest:
             headers=self.headers,
             params=self.params,
             data=self.content,
-            **kwargs
+            **kwargs,
         )
 
     def set_x_forwarded_for(self, clean: bool = False):
         """Set the X-Forwarded-For header
 
-        By default, appends the current remote address to the existing X-Forwarded-For header if one exists,
-        and sets the X-Forwarded-Host header to the incoming host. If clean is set to True, the existing
-        X-Forwarded-For header will be ignored and only the current remote address will be set.
+        By default, appends the current remote address to the existing X-Forwarded-For
+        header if one exists, and sets the X-Forwarded-Host header to the incoming host.
+        If clean is set to True, the existing X-Forwarded-For header will be ignored and
+        only the current remote address will be set.
 
         :param clean: If True, ignore the existing X-Forwarded-For header
         """
         self.headers["X-Forwarded-Host"] = self.in_req.host
         if self.in_req.headers.get("X-Forwarded-For") and not clean:
-            self.headers["X-Forwarded-For"] = f"{self.in_req.headers['X-Forwarded-For']}, {self.in_req.remote}"
+            self.headers[
+                "X-Forwarded-For"
+            ] = f"{self.in_req.headers['X-Forwarded-For']}, {self.in_req.remote}"
         else:
             self.headers["X-Forwarded-For"] = self.in_req.remote
 
