@@ -3,15 +3,15 @@ import logging
 from aiohttp import web
 from yarl import URL
 
+from proxy.context import ProxyContext
 from proxy.handler import ProxyHandler
-from proxy.options import ProxyOptions
 from proxy.request import ProxyRequest
 from proxy.response import ProxyResponse
 
-proxy_options = ProxyOptions(url=URL("https://pokeapi.co"), attributes={})
+pokeapi_context = ProxyContext(url=URL("https://pokeapi.co"), attributes={})
 
 handler = ProxyHandler(
-    proxy_options,
+    pokeapi_context,
     rewrite_from="/pokapi",
     rewrite_to="/api/v2",
 )
@@ -30,7 +30,7 @@ async def process(response: ProxyResponse):
 
 
 async def on_shutdown(app):
-    await proxy_options.close_session()
+    await pokeapi_context.close_session()
 
 
 application = web.Application()

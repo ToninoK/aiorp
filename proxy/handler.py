@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, List
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
 
-from proxy.options import ProxyOptions
+from proxy.context import ProxyContext
 from proxy.request import ProxyRequest
 from proxy.response import ProxyResponse, ResponseType
 
@@ -103,7 +103,7 @@ class ProxyHandler:
 
     def __init__(
         self,
-        proxy_options: ProxyOptions = None,
+        context: ProxyContext = None,
         rewrite_from=None,
         rewrite_to=None,
         error_handler: ErrorHandler = None,
@@ -130,7 +130,7 @@ class ProxyHandler:
                 "They should be handled by using the ProxyRequest object in the before handlers."
             )
 
-        self._proxy_options: ProxyOptions = proxy_options
+        self._context: ProxyContext = context
         self._rewrite_from = rewrite_from
         self._rewrite_to = rewrite_to
         self._error_handler = error_handler
@@ -151,12 +151,12 @@ class ProxyHandler:
         :returns: The response from the external server
         :raises: ValueError, HTTPInternalServerError
         """
-        if self._proxy_options is None:
+        if self._context is None:
             raise ValueError("Proxy options must be set before the handler is invoked.")
         proxy_request = ProxyRequest(
-            url=self._proxy_options.url,
+            url=self._context.url,
             in_req=request,
-            proxy_attributes=self._proxy_options.attributes,
+            proxy_attributes=self._context.attributes,
         )
 
         if self._rewrite_from and self._rewrite_to:
@@ -169,7 +169,7 @@ class ProxyHandler:
             await asyncio.gather(*(handler(proxy_request) for handler in handlers))
 
         resp = await proxy_request.execute(
-            self._proxy_options.session,
+            self._context.session,
             **self.request_options,
         )
         self._raise_for_status(resp)
@@ -177,7 +177,7 @@ class ProxyHandler:
         proxy_response = ProxyResponse(
             in_req=request,
             in_resp=resp,
-            proxy_attributes=self._proxy_options.attributes,
+            proxy_attributes=self._context.attributes,
         )
         for handlers in self.after_handlers.values():
             await asyncio.gather(*(handler(proxy_response) for handler in handlers))

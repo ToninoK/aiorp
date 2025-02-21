@@ -1,8 +1,9 @@
 import aiohttp
+from aiohttp.client import ClientSession
 from yarl import URL
 
 
-class ProxyOptions:
+class ProxyContext:
     """Proxy options used to configure the proxy handler"""
 
     def __init__(
@@ -13,20 +14,22 @@ class ProxyOptions:
     ):
         self.url = url
         self.attributes = attributes
-        self._session_factory = session_factory
+        self.session_factory = session_factory
         self._session = None
 
     @property
-    def session(self):
+    def session(self) -> ClientSession:
+        """Get the session object, creating it if necessary"""
         if not self._session:
             self._session = (
-                self._session_factory()
-                if self._session_factory
+                self.session_factory()
+                if self.session_factory
                 else aiohttp.ClientSession()
             )
         return self._session
 
     async def close_session(self):
+        """Close the session object"""
         if self._session:
             await self._session.close()
         self._session = None
