@@ -15,3 +15,8 @@ class ProxyOptions:
         if not self._session:
             self._session = self._session_factory() if self._session_factory else aiohttp.ClientSession()
         return self._session
+
+    async def close_session(self):
+        if self._session:
+            await self._session.close()
+        self._session = None

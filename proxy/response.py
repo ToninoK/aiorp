@@ -1,4 +1,5 @@
 from enum import Enum
+from functools import cached_property
 
 from aiohttp import client, web
 
@@ -8,18 +9,21 @@ class ResponseType(Enum):
     BASE = "BASE"
 
 class ProxyResponse:
-    def __init__(self, in_req: web.Request, in_resp: client.ClientResponse):
+    def __init__(self, in_req: web.Request, in_resp: client.ClientResponse, proxy_attributes: dict = None):
         self.in_req = in_req
         self.in_resp = in_resp
+        self.proxy_attributes = proxy_attributes
         self._response: web.StreamResponse | None = None
 
     @property
     def response(self) -> web.StreamResponse | web.Response:
+        if not self._response:
+            raise ValueError("Response has not been set")
         return self._response
 
     async def set_response(self, response_type: ResponseType):
         if self._response:
-            raise RuntimeError("Response can only be set once")
+            raise ValueError("Response can only be set once")
         if response_type == ResponseType.BASE:
             await self._set_base_response()
         elif response_type == ResponseType.STREAM:
