@@ -39,6 +39,7 @@ disable = [
     "invalid-name",
     "too-many-arguments",
     "unused-argument",
+    "logging-fstring-interpolation",
 ]
 
 [tool.pylint.reports]
