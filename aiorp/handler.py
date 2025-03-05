@@ -7,9 +7,9 @@ from typing import Any, Awaitable, Callable, List
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
 
-from proxy.context import ProxyContext
-from proxy.request import ProxyRequest
-from proxy.response import ProxyResponse, ResponseType
+from aiorp.context import ProxyContext
+from aiorp.request import ProxyRequest
+from aiorp.response import ProxyResponse, ResponseType
 
 ErrorHandler = Callable[[ClientResponseError], None]
 BeforeHandler = Callable[[ProxyRequest], Awaitable]

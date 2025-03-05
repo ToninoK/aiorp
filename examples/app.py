@@ -3,10 +3,10 @@ import logging
 from aiohttp import web
 from yarl import URL
 
-from proxy.context import ProxyContext
-from proxy.handler import Priority, ProxyHandler
-from proxy.request import ProxyRequest
-from proxy.response import ProxyResponse
+from aiorp.context import ProxyContext
+from aiorp.handler import Priority, ProxyHandler
+from aiorp.request import ProxyRequest
+from aiorp.response import ProxyResponse
 
 pokeapi_context = ProxyContext(
     url=URL("https://pokeapi.co"), attributes={"target": "pokeapi"}
