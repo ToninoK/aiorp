@@ -1,11 +1,12 @@
 # publish.yml
 
-name: "PyPI Publish"
+name: "Build and publish to PyPI"
 
 on:
-  push:
-    branches:
-    - tk/drafting
+  release:
+    types:
+      - published
+
 jobs:
   run:
     name: "Build and publish release"
