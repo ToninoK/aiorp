@@ -152,39 +152,48 @@ class ProxyHandler:
         :raises: ValueError, HTTPInternalServerError
         """
         if self._context is None:
-            raise ValueError("Proxy options must be set before the handler is invoked.")
+            raise ValueError("Proxy context must be set before the handler is invoked.")
+
+        # Build the proxy request object
         proxy_request = ProxyRequest(
             url=self._context.url,
             in_req=request,
             proxy_attributes=self._context.attributes,
         )
 
+        # Check if the path should be rewritten and do so
         if self._rewrite_from and self._rewrite_to:
             proxy_request.rewrite_path(
                 self._rewrite_from,
                 self._rewrite_to,
             )
 
+        # Execute the before request handlers
         for handlers in self.before_handlers.values():
             await asyncio.gather(*(handler(proxy_request) for handler in handlers))
 
+        # Execute the request and check the response
         resp = await proxy_request.execute(
             self._context.session,
             **self.request_options,
         )
         self._raise_for_status(resp)
 
+        # Build the proxy response object from the target response
         proxy_response = ProxyResponse(
             in_req=request,
             in_resp=resp,
             proxy_attributes=self._context.attributes,
         )
+        # Execute the after response handlers
         for handlers in self.after_handlers.values():
             await asyncio.gather(*(handler(proxy_response) for handler in handlers))
 
+        # If the response has not been set, set it using the base response type
         if not proxy_response.response:
             await proxy_response.set_response(response_type=ResponseType.BASE)
 
+        # Return the response
         return proxy_response.response
 
     def _raise_for_status(self, response: client.ClientResponse):

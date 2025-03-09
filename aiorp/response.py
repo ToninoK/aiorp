@@ -11,7 +11,17 @@ class ResponseType(Enum):
 
 
 class ProxyResponse:
-    """Proxy response object"""
+    """Proxy response object
+
+    This object encapsulates the incoming request and the response from target server.
+    It exposes a method to set the response object which can then be modified before being
+    returned to the client.
+
+    :param in_req: The incoming request object
+    :param in_resp: The incoming response object
+    :param proxy_attributes: Additional attributes to store in the response object
+        This is where the proxy context will be stored and accessible.
+    """
 
     def __init__(
         self,
@@ -19,9 +29,9 @@ class ProxyResponse:
         in_resp: client.ClientResponse,
         proxy_attributes: dict = None,
     ):
-        self.in_req = in_req
-        self.in_resp = in_resp
-        self.proxy_attributes = proxy_attributes
+        self.in_req: web.Request = in_req
+        self.in_resp: client.ClientResponse = in_resp
+        self.proxy_attributes: dict = proxy_attributes
         self._response: web.StreamResponse | None = None
 
     @property

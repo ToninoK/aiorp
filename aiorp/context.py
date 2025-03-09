@@ -6,12 +6,7 @@ from yarl import URL
 class ProxyContext:
     """Proxy options used to configure the proxy handler"""
 
-    def __init__(
-        self,
-        url: URL,
-        session_factory=None,
-        attributes=None,
-    ):
+    def __init__(self, url: URL, session_factory=None, attributes=None):
         self.url = url
         self.attributes = attributes
         self.session_factory = session_factory
