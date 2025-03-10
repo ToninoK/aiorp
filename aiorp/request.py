@@ -53,6 +53,10 @@ class ProxyRequest:
         for header in self.HOP_BY_HOP_HEADERS:
             self.headers.pop(header, None)
 
+        # Don't send default user-agent header if no other is provided
+        if "user-agent" not in self.headers:
+            self.headers["User-Agent"] = ""
+
         # Set the X-Forwarded-For header
         self.set_x_forwarded_for()
 

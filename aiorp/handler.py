@@ -7,7 +7,7 @@ from typing import Any, Awaitable, Callable, List
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
 
-from aiorp.context import ProxyContext
+from aiorp.base_handler import BaseHandler
 from aiorp.request import ProxyRequest
 from aiorp.response import ProxyResponse, ResponseType
 
@@ -78,7 +78,7 @@ class PriorityCollection:
             insort(self._priorities, priority)
 
 
-class ProxyHandler:
+class HttpProxy(BaseHandler):
     """A handler for proxying requests to a remote server
 
     This handler is used to proxy requests to a remote server.
@@ -87,36 +87,21 @@ class ProxyHandler:
     It executes specified before and after handlers, before and after the
     incoming request is proxied.
 
-    :param proxy_options: The options to use when proxying requests
+    :param error_handler: Callable that is called when an error occurs during the proxied request
+    :param context: The options to use when proxying requests
         Defines the URL to proxy requests to and the session to use. It can be None at init, but
         it must be set before attempting to proxy a request.
     :param rewrite_from: The path to rewrite from, if specified rewrite_to must also be set
     :param rewrite_to: The path to rewrite to, if specified rewrite_from must also be set
-    :param error_handler: Callable that is called when an error occurs during the proxied request
-    :param request_options: Additional options for making the request.
-        The specified options are passed to the aiohttp `ClientSession.request` method.
-        The options can't contain the following keys: method, url, headers, params, data.
-        Those parameters are to be managed through the ProxyRequest object in the before handlers.
+    :param connection_options: Additional options for establishing the session connection.
 
     :raises: ValueError
     """
 
-    def __init__(
-        self,
-        context: ProxyContext = None,
-        rewrite_from=None,
-        rewrite_to=None,
-        error_handler: ErrorHandler = None,
-        request_options: dict = None,
-    ):
-
-        if (rewrite_from and rewrite_to is None) or (
-            rewrite_to and rewrite_from is None
-        ):
-            raise ValueError("Both rewrite_from and rewrite_to must be set, or neither")
-
-        if request_options is not None and any(
-            key in request_options
+    def __init__(self, *args, error_handler: ErrorHandler = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.connection_options is not None and any(
+            key in self.connection_options
             for key in [
                 "method",
                 "url",
@@ -130,12 +115,7 @@ class ProxyHandler:
                 "They should be handled by using the ProxyRequest object in the before handlers."
             )
 
-        self._context: ProxyContext = context
-        self._rewrite_from = rewrite_from
-        self._rewrite_to = rewrite_to
         self._error_handler = error_handler
-
-        self.request_options = request_options or {}
         self.before_handlers = PriorityCollection()
         self.after_handlers = PriorityCollection()
 
@@ -175,7 +155,7 @@ class ProxyHandler:
         # Execute the request and check the response
         resp = await proxy_request.execute(
             self._context.session,
-            **self.request_options,
+            **self.connection_options,
         )
         self._raise_for_status(resp)
 
@@ -233,14 +213,6 @@ class ProxyHandler:
             merged_handlers.after_handlers.merge(proxy_handler.after_handlers)
 
         return merged_handlers
-
-    def update_request_options(self, **kwargs):
-        """Update the request options for the handler
-
-        Updates the request options for the handler.
-        These options are passed to the ProxyRequest.execute method.
-        """
-        self.request_options.update(kwargs)
 
     def before(
         self,

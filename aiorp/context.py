@@ -10,12 +10,12 @@ class ProxyContext:
         self.url = url
         self.attributes = attributes
         self.session_factory = session_factory
-        self._session = None
+        self._session: ClientSession | None = None
 
     @property
     def session(self) -> ClientSession:
         """Get the session object, creating it if necessary"""
-        if not self._session:
+        if not self._session or self._session.closed:
             self._session = (
                 self.session_factory()
                 if self.session_factory
