@@ -15,6 +15,8 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pre-commit>=4.1.0",
+    "pytest>=8.3.5",
+    "pytest-aiohttp>=1.1.0",
 ]
 
 [tool.uv]
@@ -54,4 +56,26 @@ output-format = "colorized"
 logging-modules = [
   "logging",
   "structlog"
+]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q"
+python_files = [
+    "test_*.py",
+]
+testpaths = [
+    "tests/unit",
+    "tests/integration"
+]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    # When handler is the as class with __call__ method it results in a false-positive warning
+    "ignore:Bare functions are deprecated, use async ones:DeprecationWarning"
+]
+markers = [
+    "integration: mark test as integration",
+    "websocket: mark test as websocket",
+    "current: mark test as current",
 ]

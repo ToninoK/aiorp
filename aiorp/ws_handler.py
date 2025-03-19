@@ -15,7 +15,7 @@ WebMessageHandler = Callable[
 ]
 
 
-class WebSocketProxyHandler(BaseHandler):
+class WsProxyHandler(BaseHandler):
     """WebSocket handler"""
 
     def __init__(
@@ -24,6 +24,7 @@ class WebSocketProxyHandler(BaseHandler):
         message_handler: MessageHandler = None,
         client_message_handler: ClientMessageHandler = None,
         web_message_handler: WebMessageHandler = None,
+        receive_timeout: int = 30,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -34,7 +35,7 @@ class WebSocketProxyHandler(BaseHandler):
             )
 
         # Default timeout
-        self._receive_timeout = 30
+        self._receive_timeout = receive_timeout
 
         if message_handler is not None and any(
             [client_message_handler, web_message_handler]
@@ -45,37 +46,41 @@ class WebSocketProxyHandler(BaseHandler):
             )
 
         self._client_message_handler = (
-            client_message_handler or message_handler or self._sock_to_sock
+            client_message_handler or message_handler or self._client_to_target
         )
         self._web_message_handler = (
-            web_message_handler or message_handler or self._sock_to_sock
+            web_message_handler or message_handler or self._target_to_client
         )
         self._active_sockets = set()
 
     async def __call__(self, request: web.Request):
-        ws_server = web.WebSocketResponse()
-        await ws_server.prepare(request)
+        ws_client = web.WebSocketResponse()
+        await ws_client.prepare(request)
 
         async with self._context.session.ws_connect(
             self._context.url,
-            receive_timeout=self._receive_timeout,
+            timeout=client.ClientWSTimeout(ws_receive=self._receive_timeout),
             **self.connection_options
-        ) as ws_client:
-            client_to_server = asyncio.create_task(
-                self._client_message_handler(ws_client, ws_server)
+        ) as ws_target:
+            self._active_sockets.add((ws_client, ws_target))
+
+            client_to_target = asyncio.create_task(
+                self._client_message_handler(ws_client, ws_target)
             )
-            server_to_client = asyncio.create_task(
-                self._web_message_handler(ws_server, ws_client)
+            target_to_client = asyncio.create_task(
+                self._web_message_handler(ws_target, ws_client)
             )
 
-            self._active_sockets.add((ws_client, ws_server))
             _, pending = await asyncio.wait(
-                [client_to_server, server_to_client],
+                [client_to_target, target_to_client],
                 return_when=asyncio.FIRST_COMPLETED,
             )
 
+            # Close both sockets gracefully before cancelling tasks
+            await ws_client.close()
+            await ws_target.close()
+
             # Cancel remaining tasks
-            # When one socket disconnects we want to clean up the other one
             for task in pending:
                 task.cancel()
                 try:
@@ -83,32 +88,63 @@ class WebSocketProxyHandler(BaseHandler):
                 except asyncio.CancelledError:
                     pass
 
-            if not ws_client.closed:
-                await ws_client.close()
-            if not ws_server.closed:
-                await ws_server.close()
+            self._active_sockets.remove((ws_client, ws_target))
 
-            self._active_sockets.remove((ws_client, ws_server))
+        return ws_client
 
-        return ws_server
+    async def _sock_to_sock(self, ws_source: SocketResponse, ws_target: SocketResponse):
+        """Forwards messages from source socket to target socket
 
-    @staticmethod
-    async def _sock_to_sock(source: SocketResponse, destination: SocketResponse):
-        while True:
-            msg = await source.receive()
-            if msg.type == web.WSMsgType.TEXT:
-                await destination.send_str(msg.data)
-            elif msg.type == web.WSMsgType.BINARY:
-                await destination.send_bytes(msg.data)
-            elif msg.type in (
-                web.WSMsgType.CLOSE,
-                web.WSMsgType.CLOSING,
-                web.WSMsgType.CLOSED,
-                web.WSMsgType.ERROR,
-            ):
-                break
+        :param ws_source: Source socket
+        :param ws_target: Target socket
+        :raises Exception: If an unexpected exception occurs (not a timeout or connection error)
+        """
+        try:
+            while True:
+                try:
+                    msg = await ws_source.receive()
+                    if msg.type == web.WSMsgType.TEXT:
+                        await ws_target.send_str(msg.data)
+                    elif msg.type == web.WSMsgType.BINARY:
+                        await ws_target.send_bytes(msg.data)
+                    elif msg.type == web.WSMsgType.PING:
+                        await ws_target.ping()
+                    elif msg.type == web.WSMsgType.PONG:
+                        await ws_target.pong()
+                    elif msg.type == web.WSMsgType.CLOSE:
+                        await ws_target.close()
+                        break
+                    elif msg.type in (
+                        web.WSMsgType.CLOSING,
+                        web.WSMsgType.CLOSED,
+                        web.WSMsgType.ERROR,
+                    ):
+                        break
+                except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+                    # Connection likely broken, so we should close the target
+                    if not ws_target.closed:
+                        await ws_target.close(code=1001, message=b"Server disconnected")
+                    break
+        except Exception as e:
+            # For any other exception, ensure we close the target socket
+            if not ws_target.closed:
+                await ws_target.close(code=1011, message=str(e).encode())
+            raise
+
+    async def _client_to_target(
+        self, ws_client: SocketResponse, ws_target: SocketResponse
+    ):
+        """Forwards messages from client socket to target socket"""
+        await self._sock_to_sock(ws_client, ws_target)
+
+    async def _target_to_client(
+        self, ws_target: SocketResponse, ws_client: SocketResponse
+    ):
+        """Forwards messages from target socket to client socket"""
+        await self._sock_to_sock(ws_target, ws_client)
 
     async def terminate_sockets(self):
+        """Closes all active sockets"""
         tasks = []
         for ws_client, ws_server in self._active_sockets:
             if not ws_client.closed:

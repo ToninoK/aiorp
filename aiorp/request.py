@@ -107,9 +107,6 @@ class ProxyRequest:
 
         self.headers["Upgrade"] = self.in_req.headers["Upgrade"]
         self.headers["Connection"] = "Upgrade"
-        self.headers.pop("Sec-WebSocket-Key", None)
-        self.headers.pop("Sec-WebSocket-Version", None)
-        self.headers.pop("Sec-WebSocket-Extensions", None)
 
     async def load_content(self):
         """Load the content of the incoming request if it can be read"""

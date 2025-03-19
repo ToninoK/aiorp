@@ -2,21 +2,20 @@ from aiohttp import web
 from yarl import URL
 
 from aiorp.context import ProxyContext
-from aiorp.ws_handler import WebSocketProxyHandler
+from aiorp.ws_handler import WsProxyHandler
 
 app = web.Application()
 
-# Create an instance of the WebSocket proxy handler
-context = ProxyContext(url=URL("http://localhost:8765/ws"))
-ws_handler = WebSocketProxyHandler(context)
+context = ProxyContext(url=URL("http://localhost:8080"))
+handler = WsProxyHandler(context)
 
 # Add a route for WebSocket connections
-app.router.add_route("GET", "/ws", ws_handler)
+app.router.add_route("GET", "/", handler)
 
 
 async def shutdown(_app):
     # Close the session when the application is shutting down
-    await ws_handler.terminate_sockets()
+    await handler.terminate_sockets()
     await context.close_session()
 
 

@@ -4,14 +4,14 @@ from aiohttp import web
 from yarl import URL
 
 from aiorp.context import ProxyContext
-from aiorp.handler import HttpProxy, Priority
+from aiorp.http_handler import HttpProxyHandler, Priority
 from aiorp.request import ProxyRequest
 
 pokeapi_context = ProxyContext(
     url=URL("https://pokeapi.co"), attributes={"target": "pokeapi"}
 )
 
-handler = HttpProxy(
+handler = HttpProxyHandler(
     pokeapi_context,
     rewrite_from="/pokapi",
     rewrite_to="/api/v2",

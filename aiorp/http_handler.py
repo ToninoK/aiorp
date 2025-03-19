@@ -78,7 +78,7 @@ class PriorityCollection:
             insort(self._priorities, priority)
 
 
-class HttpProxy(BaseHandler):
+class HttpProxyHandler(BaseHandler):
     """A handler for proxying requests to a remote server
 
     This handler is used to proxy requests to a remote server.
