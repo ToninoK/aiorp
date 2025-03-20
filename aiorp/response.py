@@ -33,6 +33,7 @@ class ProxyResponse:
         self.in_resp: client.ClientResponse = in_resp
         self.proxy_attributes: dict = proxy_attributes
         self._response: web.StreamResponse | None = None
+        self._content: bytes | None = None
 
     @property
     def response(

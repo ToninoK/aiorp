@@ -1,11 +1,18 @@
 from unittest import mock
 
+import pytest
+from aiohttp.streams import StreamReader
 from aiohttp.test_utils import make_mocked_request
 from yarl import URL
 
 from aiorp.request import ProxyRequest
 
 TARGET_URL = URL("http://localhost:8080")
+
+pytestmark = [
+    pytest.mark.request,
+    pytest.mark.unit,
+]
 
 
 def test_proxy_request():
@@ -116,3 +123,43 @@ def test_host_header_set_from_proxy():
     mock_request = make_mocked_request("GET", "/", headers={"Host": "proxyhost.com"})
     proxy_request = ProxyRequest(TARGET_URL, mock_request)
     assert proxy_request.headers["Host"] == "localhost"
+
+
+@pytest.mark.asyncio
+async def test_content_loaded():
+    """Test that the content is loaded"""
+    payload = StreamReader(protocol=mock.Mock(), limit=1024**2)
+    payload.feed_data(b"test")
+    payload.feed_eof()
+    mock_request = make_mocked_request("POST", "/", payload=payload)
+    proxy_request = ProxyRequest(TARGET_URL, mock_request)
+    assert proxy_request.content is None
+    await proxy_request.load_content()
+    assert proxy_request.content == b"test"
+
+
+@pytest.mark.asyncio
+async def test_content_should_not_be_loaded():
+    """Test that the content is not loaded if the method is not POST"""
+    payload = StreamReader(protocol=mock.Mock(), limit=1024**2)
+    payload.feed_data(b"test")
+    payload.feed_eof()
+    mock_request = make_mocked_request("GET", "/", payload=payload)
+    proxy_request = ProxyRequest(TARGET_URL, mock_request)
+    assert proxy_request.content is None
+    await proxy_request.load_content()
+    assert proxy_request.content is None
+
+
+def test_rewrite_path():
+    """Test that the path is rewritten"""
+    mock_request = make_mocked_request("GET", "/old/path")
+    proxy_request = ProxyRequest(TARGET_URL, mock_request)
+    proxy_request.rewrite_path("/path", "/newpath")
+    assert proxy_request.url.path == "/old/newpath"
+
+    proxy_request.rewrite_path("/old/newpath", "/new/path")
+    assert proxy_request.url.path == "/new/path"
+
+    proxy_request.rewrite_path("new", "old")
+    assert proxy_request.url.path == "/old/path"

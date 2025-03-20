@@ -100,14 +100,6 @@ class ProxyRequest:
         else:
             self.headers["X-Forwarded-For"] = self.in_req.remote
 
-    def upgrade_request(self):
-        """Preserve the Upgrade header if it exists in the incoming request"""
-        if not self.in_req.headers.get("Upgrade"):
-            return
-
-        self.headers["Upgrade"] = self.in_req.headers["Upgrade"]
-        self.headers["Connection"] = "Upgrade"
-
     async def load_content(self):
         """Load the content of the incoming request if it can be read"""
         if self.method in ["POST", "PUT", "PATCH"] and self.in_req.can_read_body:

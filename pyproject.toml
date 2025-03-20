@@ -14,9 +14,11 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "aioresponses>=0.7.8",
     "pre-commit>=4.1.0",
     "pytest>=8.3.5",
     "pytest-aiohttp>=1.1.0",
+    "pytest-xdist>=3.6.1",
 ]
 
 [tool.uv]
@@ -29,7 +31,7 @@ multi_line_output = 3
 default_section = "THIRDPARTY"
 honor_noqa = true
 include_trailing_comma = true
-known_third_party = ["aiohttp", "multidict", "yarl"]
+known_third_party = ["aiohttp", "aioresponses", "multidict", "pytest", "yarl"]
 atomic = true
 
 [tool.pylint.master]
@@ -75,7 +77,9 @@ filterwarnings = [
     "ignore:Bare functions are deprecated, use async ones:DeprecationWarning"
 ]
 markers = [
+    "request: mark test as request",
+    "response: mark test as response",
+    "unit: mark test as unit",
     "integration: mark test as integration",
-    "websocket: mark test as websocket",
     "current: mark test as current",
 ]
