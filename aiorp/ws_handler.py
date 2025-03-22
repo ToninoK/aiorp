@@ -43,10 +43,10 @@ class WsProxyHandler(BaseHandler):
 
         self._default_timeout = client.ClientWSTimeout(ws_receive=30)
         self._client_message_handler = (
-            client_message_handler or message_handler or self._client_to_target
+            client_message_handler or message_handler or self._sock_to_sock
         )
         self._web_message_handler = (
-            web_message_handler or message_handler or self._target_to_client
+            web_message_handler or message_handler or self._sock_to_sock
         )
         self._active_sockets = set()
 
@@ -55,99 +55,111 @@ class WsProxyHandler(BaseHandler):
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
         ws_client = web.WebSocketResponse()
+        ws_target = await self._context.session.ws_connect(
+            self._context.url, timeout=self._default_timeout, **self.connection_options
+        )
+
+        # Add sockets to active set
+        socket_pair = (ws_client, ws_target)
+        self._active_sockets.add(socket_pair)
+
+        # Prepare client
         await ws_client.prepare(request)
 
-        async with self._context.session.ws_connect(
-            self._context.url, timeout=self._default_timeout, **self.connection_options
-        ) as ws_target:
-            self._active_sockets.add((ws_client, ws_target))
+        # Create and run message forwarding tasks
+        client_to_target = asyncio.create_task(
+            self._client_message_handler(ws_client, ws_target)
+        )
+        target_to_client = asyncio.create_task(
+            self._web_message_handler(ws_target, ws_client)
+        )
 
-            client_to_target = asyncio.create_task(
-                self._client_message_handler(ws_client, ws_target)
-            )
-            target_to_client = asyncio.create_task(
-                self._web_message_handler(ws_target, ws_client)
-            )
+        # Wait for first task to complete
+        _, pending = await asyncio.wait(
+            [client_to_target, target_to_client],
+            return_when=asyncio.FIRST_COMPLETED,
+        )
 
-            _, pending = await asyncio.wait(
-                [client_to_target, target_to_client],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
+        # Cancel remaining tasks
+        for task in pending:
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
-            # Close both sockets gracefully before cancelling tasks
-            await ws_client.close()
-            await ws_target.close()
+        # Ensure both sockets are closed
+        # This can happen when the user provided message handlers don't close the sockets
+        await self._terminate_sockets(ws_client, ws_target)
 
-            # Cancel remaining tasks
-            for task in pending:
-                task.cancel()
-                try:
-                    await task
-                except asyncio.CancelledError:
-                    pass
-
-            self._active_sockets.remove((ws_client, ws_target))
+        # Remove the socket pair from the active set
+        self._active_sockets.remove(socket_pair)
 
         return ws_client
 
     async def _sock_to_sock(self, ws_source: SocketResponse, ws_target: SocketResponse):
         """Forwards messages from source socket to target socket
 
+        When this function is finished, both sockets will be closed.
+
         :param ws_source: Source socket
         :param ws_target: Target socket
         :raises Exception: If an unexpected exception occurs (not a timeout or connection error)
         """
         try:
-            while True:
-                try:
-                    msg = await ws_source.receive()
-                    if msg.type == web.WSMsgType.TEXT:
-                        await ws_target.send_str(msg.data)
-                    elif msg.type == web.WSMsgType.BINARY:
-                        await ws_target.send_bytes(msg.data)
-                    elif msg.type == web.WSMsgType.PING:
-                        await ws_target.ping()
-                    elif msg.type == web.WSMsgType.PONG:
-                        await ws_target.pong()
-                    elif msg.type == web.WSMsgType.CLOSE:
-                        await ws_target.close()
-                        break
-                    elif msg.type in (
-                        web.WSMsgType.CLOSING,
-                        web.WSMsgType.CLOSED,
-                        web.WSMsgType.ERROR,
-                    ):
-                        break
-                except (asyncio.CancelledError, asyncio.TimeoutError) as e:
-                    # Connection likely broken, so we should close the target
-                    if not ws_target.closed:
-                        await ws_target.close(code=1001, message=b"Server disconnected")
-                    break
+            # Forward messages from source to target
+            await self._proxy_messages(ws_source, ws_target)
+        except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+            # Connection might be broken, so we should close the target
+            if not ws_target.closed:
+                await ws_target.close(code=1001, message=b"Server disconnected")
         except Exception as e:
-            # For any other exception, ensure we close the target socket
+            # For unexpected exceptions, close the target socket
             if not ws_target.closed:
                 await ws_target.close(code=1011, message=str(e).encode())
             raise
+        finally:
+            # Make sure the source socket is closed
+            if not ws_source.closed:
+                await ws_source.close()
 
-    async def _client_to_target(
-        self, ws_client: SocketResponse, ws_target: SocketResponse
+    async def _proxy_messages(
+        self, ws_source: SocketResponse, ws_target: SocketResponse
     ):
-        """Forwards messages from client socket to target socket"""
-        await self._sock_to_sock(ws_client, ws_target)
+        """Forwards messages from source socket to target socket"""
+        while True:
+            msg = await ws_source.receive()
+            if msg.type == web.WSMsgType.TEXT:
+                await ws_target.send_str(msg.data)
+            elif msg.type == web.WSMsgType.BINARY:
+                await ws_target.send_bytes(msg.data)
+            elif msg.type == web.WSMsgType.PING:
+                await ws_target.ping()
+            elif msg.type == web.WSMsgType.PONG:
+                await ws_target.pong()
+            elif msg.type == web.WSMsgType.CLOSE:
+                if not ws_target.closed:
+                    await ws_target.close(
+                        code=msg.data.code,
+                        message=msg.data.message if msg.data else None,
+                    )
+                break
+            elif msg.type in (
+                web.WSMsgType.CLOSING,
+                web.WSMsgType.CLOSED,
+                web.WSMsgType.ERROR,
+            ):
+                break
 
-    async def _target_to_client(
-        self, ws_target: SocketResponse, ws_client: SocketResponse
-    ):
-        """Forwards messages from target socket to client socket"""
-        await self._sock_to_sock(ws_target, ws_client)
-
-    async def terminate_sockets(self):
+    async def close_active_sockets(self):
         """Closes all active sockets"""
-        tasks = []
-        for ws_client, ws_server in self._active_sockets:
-            if not ws_client.closed:
-                tasks.append(ws_client.close())
-            if not ws_server.closed:
-                tasks.append(ws_server.close())
+        for ws_client, ws_target in self._active_sockets:
+            await self._terminate_sockets(ws_client, ws_target)
 
-        await asyncio.gather(*tasks)
+    @staticmethod
+    async def _terminate_sockets(ws_source: SocketResponse, ws_target: SocketResponse):
+        """Closes both sockets"""
+        if not ws_source.closed:
+            await ws_source.close()
+        if not ws_target.closed:
+            await ws_target.close()

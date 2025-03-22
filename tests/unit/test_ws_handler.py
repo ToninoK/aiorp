@@ -33,10 +33,13 @@ def test_ws_handler_init():
 
 
 # pylint: disable=protected-access
+@pytest.mark.current
 async def test_sock_to_sock_text():
     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
     ws_client = AsyncMock()
     ws_target = AsyncMock()
+    ws_client.closed = False
+    ws_target.closed = False
 
     # Test TEXT message
     ws_client.receive.side_effect = [
@@ -53,6 +56,8 @@ async def test_sock_to_sock_binary():
     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
     ws_client = AsyncMock()
     ws_target = AsyncMock()
+    ws_client.closed = False
+    ws_target.closed = False
 
     # Test BINARY message
     ws_client.receive.side_effect = [
@@ -69,6 +74,8 @@ async def test_sock_to_sock_ping():
     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
     ws_client = AsyncMock()
     ws_target = AsyncMock()
+    ws_client.closed = False
+    ws_target.closed = False
 
     # Test PING message
     ws_client.receive.side_effect = [
@@ -85,6 +92,8 @@ async def test_sock_to_sock_pong():
     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
     ws_client = AsyncMock()
     ws_target = AsyncMock()
+    ws_client.closed = False
+    ws_target.closed = False
 
     # Test PONG message
     ws_client.receive.side_effect = [
@@ -124,7 +133,7 @@ async def test_sock_to_sock_exception():
 
 
 # pylint: disable=protected-access
-async def test_terminate_sockets():
+async def test_close_active_sockets():
     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
     ws_client = AsyncMock()
     ws_target = AsyncMock()
@@ -132,12 +141,6 @@ async def test_terminate_sockets():
     ws_target.closed = False
     ws_client.closed = False
 
-    await ws_handler.terminate_sockets()
+    await ws_handler.close_active_sockets()
     ws_client.close.assert_called_once()
     ws_target.close.assert_called_once()
-
-
-# async def test_call():
-#     ws_handler = WsProxyHandler(context=ProxyContext(url="http://localhost:8080"))
-#     ws_client = AsyncMock()
-#     ws_target = AsyncMock()
