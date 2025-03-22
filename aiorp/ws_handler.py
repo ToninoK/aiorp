@@ -24,7 +24,6 @@ class WsProxyHandler(BaseHandler):
         message_handler: MessageHandler = None,
         client_message_handler: ClientMessageHandler = None,
         web_message_handler: WebMessageHandler = None,
-        receive_timeout: int = 30,
         **kwargs
     ):
         super().__init__(*args, **kwargs)
@@ -34,17 +33,15 @@ class WsProxyHandler(BaseHandler):
                 "The connection options cannot contain the 'url', set it through context instead"
             )
 
-        # Default timeout
-        self._receive_timeout = receive_timeout
-
         if message_handler is not None and any(
             [client_message_handler, web_message_handler]
         ):
             raise ValueError(
-                "You can either set message handler,"
+                "You can either set message_handler,"
                 " or client_message_handler and web_message_handler, but not both"
             )
 
+        self._default_timeout = client.ClientWSTimeout(ws_receive=30)
         self._client_message_handler = (
             client_message_handler or message_handler or self._client_to_target
         )
@@ -54,13 +51,14 @@ class WsProxyHandler(BaseHandler):
         self._active_sockets = set()
 
     async def __call__(self, request: web.Request):
+        if self._context is None:
+            raise ValueError("Proxy context must be set before the handler is invoked.")
+
         ws_client = web.WebSocketResponse()
         await ws_client.prepare(request)
 
         async with self._context.session.ws_connect(
-            self._context.url,
-            timeout=client.ClientWSTimeout(ws_receive=self._receive_timeout),
-            **self.connection_options
+            self._context.url, timeout=self._default_timeout, **self.connection_options
         ) as ws_target:
             self._active_sockets.add((ws_client, ws_target))
 
