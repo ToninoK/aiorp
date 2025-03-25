@@ -25,18 +25,14 @@ class ProxyResponse:
 
     def __init__(
         self,
-        in_req: web.Request,
         in_resp: client.ClientResponse,
-        proxy_attributes: dict = None,
     ):
-        self.in_req: web.Request = in_req
         self.in_resp: client.ClientResponse = in_resp
-        self.proxy_attributes: dict = proxy_attributes
         self._response: web.StreamResponse | None = None
         self._content: bytes | None = None
 
     @property
-    def response(
+    def web(
         self,
     ) -> web.StreamResponse | web.Response:
         if self._response is None:
@@ -58,7 +54,6 @@ class ProxyResponse:
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
         )
-        await stream_resp.prepare(self.in_req)
         self._response = stream_resp
 
     async def _set_base_response(self):

@@ -4,11 +4,11 @@ from aiohttp import web
 from yarl import URL
 
 from aiorp.context import ProxyContext
-from aiorp.http_handler import HttpProxyHandler, Priority
-from aiorp.request import ProxyRequest
+from aiorp.http_handler import HttpProxyHandler
+from aiorp.response import ResponseType
 
 pokeapi_context = ProxyContext(
-    url=URL("https://pokeapi.co"), attributes={"target": "pokeapi"}
+    url=URL("https://pokeapi.co"), state={"target": "pokeapi"}
 )
 
 handler = HttpProxyHandler(
@@ -20,15 +20,23 @@ handler = HttpProxyHandler(
 log = logging.getLogger(__name__)
 
 
-@handler.before(priority=Priority.HIGHEST)
-async def prepare_1(request: ProxyRequest):
-    log.info("I execute first")
-    log.info(f"Target: {request.proxy_attributes['target']}")
+@handler.early
+async def proxy_middleware1(context: ProxyContext):
+    # Do request processing here
+    log.info("Early middleware: Starting pre-processing")
+    yield
+    log.info("Early middleware: Starting post-processing")
+    await context.response.set_response(ResponseType.BASE)
+    log.info(context.response.web.status)
 
 
-@handler.before(priority=Priority.HIGH)
-async def prepare_2(request: ProxyRequest):
-    log.info("I execute second")
+@handler.standard
+async def proxy_middleware2(context: ProxyContext):
+    # Do request processing here
+    log.info("Standard middleware: Starting pre-processing")
+    yield
+    # Do response processing here
+    log.info("Standard middleware: Starting post-processing")
 
 
 async def on_shutdown(app):
@@ -44,6 +52,8 @@ handler_routes = [
 application.router.add_routes(handler_routes)
 application.on_cleanup.append(on_shutdown)
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 web.run_app(application)

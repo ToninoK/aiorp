@@ -30,9 +30,9 @@ async def test_proxy_response_set_base(
 
         proxy_response = ProxyResponse(mock_request, resp)
         await proxy_response.set_response(ResponseType.BASE)
-        assert proxy_response.response.status == 200
-        assert proxy_response.response.headers == resp.headers
-        assert proxy_response.response.body == b"test"
+        assert proxy_response.web.status == 200
+        assert proxy_response.web.headers == resp.headers
+        assert proxy_response.web.body == b"test"
 
 
 async def test_proxy_response_set_stream(
@@ -46,9 +46,9 @@ async def test_proxy_response_set_stream(
 
         proxy_response = ProxyResponse(mock_request, resp)
         await proxy_response.set_response(ResponseType.STREAM)
-        assert proxy_response.response.status == 200
-        assert "Transfer-Encoding" in proxy_response.response.headers
-        assert proxy_response.response.headers["Transfer-Encoding"] == "chunked"
+        assert proxy_response.web.status == 200
+        assert "Transfer-Encoding" in proxy_response.web.headers
+        assert proxy_response.web.headers["Transfer-Encoding"] == "chunked"
 
 
 async def test_proxy_response_response_already_set(
@@ -72,4 +72,4 @@ async def test_proxy_response_not_set():  # pylint: disable=redefined-outer-name
     mock_request = make_mocked_request("GET", "/")
     proxy_response = ProxyResponse(mock_request, None)
     with pytest.raises(ValueError):
-        proxy_response.response  # pylint: disable=pointless-statement
+        proxy_response.web  # pylint: disable=pointless-statement

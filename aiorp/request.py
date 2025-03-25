@@ -33,7 +33,6 @@ class ProxyRequest:
         self,
         url: URL,
         in_req: web.Request,
-        proxy_attributes: dict = None,
     ):
         self.in_req: web.Request = in_req
         self.url: URL = url
@@ -41,7 +40,6 @@ class ProxyRequest:
         self.method: str = in_req.method
         self.params: MultiMapping[str] = in_req.query
         self.content: bytes | Any = None
-        self.proxy_attributes: dict = proxy_attributes
 
         # Update path to match the incoming request
         self.url = self.url.with_path(self.in_req.path)

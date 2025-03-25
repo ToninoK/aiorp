@@ -1,81 +1,28 @@
-import asyncio
-from bisect import insort
-from collections import defaultdict
+import json
+import logging
 from enum import IntEnum
-from typing import Any, Awaitable, Callable, List
+from typing import Awaitable, Callable
 
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
 
 from aiorp.base_handler import BaseHandler
+from aiorp.context import ProxyContext
 from aiorp.request import ProxyRequest
 from aiorp.response import ProxyResponse, ResponseType
 
-ErrorHandler = Callable[[ClientResponseError], None]
-BeforeHandler = Callable[[ProxyRequest], Awaitable]
-AfterHandler = Callable[[ProxyResponse], Awaitable]
+log = logging.getLogger(__name__)
+
+ErrorHandler = Callable[[ClientResponseError], None] | None
+ProxyMiddleware = Callable[[ProxyContext], Awaitable]
 
 
-class Priority(IntEnum):
-    """Handler priority enumeration"""
+class MiddlewarePhase(IntEnum):
+    """Middleware phase enumeration"""
 
-    HIGHEST = 0
-    HIGH = 1
-    NORMAL = 2
-    LOW = 3
-    LOWEST = 4
-
-
-class PriorityCollection:
-    """Dict-like object for storing items with priorities
-
-    The collection stores items while keeping track of their priority. Items with the
-    same priority are stored in a list. Iterating over the collection will yield the
-    lists of items in the order of their priority.
-    """
-
-    def __init__(self):
-        self._handlers = defaultdict(list)
-        self._priorities = []
-
-    def __getitem__(self, priority: Priority) -> List:
-        return self._handlers[priority]
-
-    def add(self, priority: Priority, value: Any):
-        self._handlers[priority].append(value)
-        insort(self._priorities, priority)
-
-    def __iter__(self):
-        """Iterate over the priorities in the collection"""
-        for priority in self._priorities:
-            yield priority
-
-    def values(self):
-        """Iterate over the values in the collection in the order of their priority"""
-        for priority in self._priorities:
-            yield self._handlers[priority]
-
-    def keys(self):
-        """Iterate over the priorities the collection"""
-        for priority in self._priorities:
-            yield priority
-
-    def items(self):
-        """Iterate over the items in the collection"""
-        for priority in self._priorities:
-            yield priority, self._handlers[priority]
-
-    def merge(
-        self,
-        handler_collection: "PriorityCollection",
-    ):
-        """Merge another collection into this collection"""
-        for (
-            priority,
-            handlers,
-        ) in handler_collection.items():
-            self._handlers[priority].extend(handlers)
-            insort(self._priorities, priority)
+    EARLY = 0  # Authentication, security checks
+    STANDARD = 500  # Logging, tracking, most transformations
+    LATE = 1000  # Anything you might want to execute last before request is sent out
 
 
 class HttpProxyHandler(BaseHandler):
@@ -116,8 +63,7 @@ class HttpProxyHandler(BaseHandler):
             )
 
         self._error_handler = error_handler
-        self.before_handlers = PriorityCollection()
-        self.after_handlers = PriorityCollection()
+        self._middlewares = []
 
     async def __call__(self, request: web.Request) -> web.StreamResponse | web.Response:
         """Handle incoming requests
@@ -138,7 +84,6 @@ class HttpProxyHandler(BaseHandler):
         proxy_request = ProxyRequest(
             url=self._context.url,
             in_req=request,
-            proxy_attributes=self._context.attributes,
         )
 
         # Check if the path should be rewritten and do so
@@ -148,33 +93,66 @@ class HttpProxyHandler(BaseHandler):
                 self._rewrite_to,
             )
 
-        # Execute the before request handlers
-        for handlers in self.before_handlers.values():
-            await asyncio.gather(*(handler(proxy_request) for handler in handlers))
+        self._context.request = proxy_request
 
+        # Execute the middleware chain
+        await self._execute_middleware_chain()
+
+        if self._context.response is None:
+            raise ValueError("Response not set")
+
+        try:
+            await self._context.response.set_response(response_type=ResponseType.BASE)
+        except ValueError:
+            pass
+        # Return the response
+        return self._context.response.web
+
+    async def _execute_middleware_chain(self):
+        """Execute the entire provided middleware chain.
+
+        The chain is executed in order the middlewares were registered,
+        with the pre-yield code executing in that order, and the post-yield
+        executing in reverse order ("russian doll model").
+        """
+        sorted_middlewares = sorted(self._middlewares, key=lambda x: x[0])
+        middleware_gens = []
+
+        # Start all middleware generators and store them
+        for _, middleware in sorted_middlewares:
+            gen = middleware(self._context).__aiter__()
+            await gen.__anext__()  # Execute before yield
+            middleware_gens.append(gen)
+
+        # Execute the actual request
+        await self._proxy_middleware(self._context)
+
+        # Resume all middleware generators in reverse order
+        for gen in reversed(middleware_gens):
+            try:
+                await gen.__anext__()  # Resume handling post yield
+            except StopAsyncIteration:
+                pass  # Generator finished normally
+
+    async def _proxy_middleware(self, context: ProxyContext):
+        """The default final middleware in the middleware chain.
+
+        It executes after all other user provided middlewares, and
+        it proxies the request to the target destination.
+
+        :param context: The proxy context holding the request and response information
+        """
+        if context.request is None:
+            raise ValueError("ProxyRequest not set")
         # Execute the request and check the response
-        resp = await proxy_request.execute(
-            self._context.session,
+        resp = await context.request.execute(
+            context.session,
             **self.connection_options,
         )
         self._raise_for_status(resp)
 
         # Build the proxy response object from the target response
-        proxy_response = ProxyResponse(
-            in_req=request,
-            in_resp=resp,
-            proxy_attributes=self._context.attributes,
-        )
-        # Execute the after response handlers
-        for handlers in self.after_handlers.values():
-            await asyncio.gather(*(handler(proxy_response) for handler in handlers))
-
-        # If the response has not been set, set it using the base response type
-        if not proxy_response.response:
-            await proxy_response.set_response(response_type=ResponseType.BASE)
-
-        # Return the response
-        return proxy_response.response
+        context.response = ProxyResponse(in_resp=resp)
 
     def _raise_for_status(self, response: client.ClientResponse):
         """Check status of request and handle the error properly
@@ -193,81 +171,60 @@ class HttpProxyHandler(BaseHandler):
                 self._error_handler(err)
             raise HTTPInternalServerError(
                 reason="External API Error",
-                body={
-                    "status": err.status,
-                    "message": err.message,
-                },
+                content_type="application/json",
+                text=json.dumps(
+                    {
+                        "status": err.status,
+                        "message": err.message,
+                    }
+                ),
             )
 
-    @classmethod
-    def merge(cls, *handlers, **kwargs):
-        """Merge multiple handlers into a single handler
+    def middleware(self, order=MiddlewarePhase.STANDARD):
+        """Register a middleware with explicit ordering
 
-        Combines the before and after handlers of multiple handlers into a single handler.
-        The kwargs are passed to the constructor of the merged handler.
-        """
-        merged_handlers = cls(**kwargs)
+        It will be registered depending on the order and relative to
+        other defined middlewares. A lower number means sooner registration,
+        while a higher number results in a later registration.
 
-        for proxy_handler in handlers:
-            merged_handlers.before_handlers.merge(proxy_handler.before_handlers)
-            merged_handlers.after_handlers.merge(proxy_handler.after_handlers)
-
-        return merged_handlers
-
-    def before(
-        self,
-        priority: Priority | int = Priority.HIGHEST,
-    ) -> Callable[[BeforeHandler], BeforeHandler]:
-        """Decorator to add a before handler to the proxy handler
-
-        :param priority: The priority of the handler which defines order of execution.
-            You can use the Priority enum to set the priority, or a simple integer. Keep in mind
-            that lower numbers mark a higher priority. Default is Priority.HIGHEST.
-        :returns: A decorator that adds the function to the before handlers collection
+        :param order: Integer representing order of middleware registration.
         """
 
-        def inner(func: BeforeHandler):
-            self.before_handlers.add(priority=priority, value=func)
+        def decorator(func):
+            self._middlewares.append((order, func))
             return func
 
-        return inner
+        return decorator
 
-    def after(
-        self,
-        priority: Priority | int = Priority.HIGHEST,
-    ) -> Callable[[AfterHandler], AfterHandler]:
-        """Decorator to add an after handler to the proxy handler
+    def early(self, func: Callable[[ProxyContext], Awaitable]):
+        """Register an early middleware that can yield
 
-        :param priority: The priority of the handler which defines order of execution.
-            You can use the Priority enum to set the priority, or a simple integer. Keep in mind
-            that lower numbers mark a higher priority. Default is Priority.HIGHEST.
-        :returns: A decorator that adds the function to the after handlers collection
+        This middleware is registered as first, meaning the code before yield
+        will act before any other one, but code after yield will execute the last.
+
+        :param func: The middlware function which yields
         """
+        return self.middleware(MiddlewarePhase.EARLY)(func)
 
-        def inner(func: AfterHandler):
-            self.after_handlers.add(priority=priority, value=func)
-            return func
+    def standard(self, func: Callable[[ProxyContext], Awaitable]):
+        """Register a standard middleware that can yield
 
-        return inner
+        This middleware is registered between the early and late middleware.
+        The code before yield will act after the early middleware, but before
+        late middleware. The code after yield acts after middleware registered late
+        but before middleware registered early.
 
-    def add_before(self, priority: Priority, func: BeforeHandler):
-        """Add a before handler to the proxy handler
-
-        :param priority: The priority of the handler which defines order of execution.
-            You can use the Priority enum to set the priority, or a simple integer. Keep in mind
-            that lower numbers mark a higher priority. Default is Priority.HIGHEST.
-        :param func: The function to add to the before handlers collection
-        :returns: None
+        :param func: The middlware function which yields
         """
-        self.before_handlers.add(priority, func)
+        return self.middleware(MiddlewarePhase.STANDARD)(func)
 
-    def add_after(self, priority: Priority, func: AfterHandler):
-        """Add an after handler to the proxy handler
+    def late(self, func: Callable[[ProxyContext], Awaitable]):
+        """Register a late middleware that can yield
 
-        :param priority: The priority of the handler which defines order of execution.
-            You can use the Priority enum to set the priority, or a simple integer. Keep in mind
-            that lower numbers mark a higher priority. Default is Priority.HIGHEST.
-        :param func: The function to add to the after handlers collection
-        :returns: None
+        This middleware is registered the last.
+        The code before yield will act after all other middlewares. The code after
+        the yield runs before any other middleware.
+
+        :param func: The middleware function which yields
         """
-        self.after_handlers.add(priority, func)
+        return self.middleware(MiddlewarePhase.LATE)(func)
