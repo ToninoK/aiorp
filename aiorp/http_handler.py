@@ -1,5 +1,7 @@
+import asyncio
 import json
 import logging
+from collections import defaultdict
 from enum import IntEnum
 from typing import Awaitable, Callable
 
@@ -63,7 +65,7 @@ class HttpProxyHandler(BaseHandler):
             )
 
         self._error_handler = error_handler
-        self._middlewares = []
+        self._middlewares = defaultdict(list)
 
     async def __call__(self, request: web.Request) -> web.StreamResponse | web.Response:
         """Handle incoming requests
@@ -115,24 +117,26 @@ class HttpProxyHandler(BaseHandler):
         with the pre-yield code executing in that order, and the post-yield
         executing in reverse order ("russian doll model").
         """
-        sorted_middlewares = sorted(self._middlewares, key=lambda x: x[0])
-        middleware_gens = []
+        sorted_middlewares = sorted(self._middlewares.keys())
+        middleware_generators = defaultdict(list)
 
         # Start all middleware generators and store them
-        for _, middleware in sorted_middlewares:
-            gen = middleware(self._context).__aiter__()
-            await gen.__anext__()  # Execute before yield
-            middleware_gens.append(gen)
+        for order_key in sorted_middlewares:
+            middleware_funcs = self._middlewares[order_key]
+            generators = [func(self._context).__aiter__() for func in middleware_funcs]
+            await asyncio.gather(
+                *[gen.__anext__() for gen in generators], return_exceptions=True
+            )
+            middleware_generators[order_key] = generators
 
         # Execute the actual request
         await self._proxy_middleware(self._context)
 
         # Resume all middleware generators in reverse order
-        for gen in reversed(middleware_gens):
-            try:
-                await gen.__anext__()  # Resume handling post yield
-            except StopAsyncIteration:
-                pass  # Generator finished normally
+        for order_key in reversed(sorted_middlewares):
+            await asyncio.gather(
+                *[gen.__anext__() for gen in middleware_generators[order_key]]
+            )
 
     async def _proxy_middleware(self, context: ProxyContext):
         """The default final middleware in the middleware chain.
@@ -191,7 +195,7 @@ class HttpProxyHandler(BaseHandler):
         """
 
         def decorator(func):
-            self._middlewares.append((order, func))
+            self._middlewares[order].append(func)
             return func
 
         return decorator
