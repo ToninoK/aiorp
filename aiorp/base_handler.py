@@ -8,10 +8,10 @@ class BaseHandler:
 
     def __init__(
         self,
-        context: ProxyContext = None,
+        context: ProxyContext | None = None,
         rewrite_from=None,
         rewrite_to=None,
-        connection_options: dict = None,
+        connection_options: dict | None = None,
     ):
 
         if (rewrite_from and rewrite_to is None) or (
@@ -19,7 +19,7 @@ class BaseHandler:
         ):
             raise ValueError("Both rewrite_from and rewrite_to must be set, or neither")
 
-        self._context: ProxyContext = context
+        self._context: ProxyContext | None = context
         self._rewrite_from = rewrite_from
         self._rewrite_to = rewrite_to
 
@@ -29,11 +29,3 @@ class BaseHandler:
         raise NotImplementedError(
             "The __call__ method must be implemented in a subclass"
         )
-
-    def update_connection_options(self, **kwargs):
-        """Update the connection options for the handler
-
-        Updates the connection options for the handler.
-        These options are used when the session establishes a connection.
-        """
-        self.connection_options.update(kwargs)

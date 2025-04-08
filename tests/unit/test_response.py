@@ -1,6 +1,5 @@
 import pytest
 from aiohttp import ClientSession
-from aiohttp.test_utils import make_mocked_request
 from aioresponses import aioresponses
 
 from aiorp.response import ProxyResponse, ResponseType
@@ -23,12 +22,11 @@ async def test_proxy_response_set_base(
     http_client,
 ):  # pylint: disable=redefined-outer-name
     """Test the ProxyResponse class when the response is set to base"""
-    mock_request = make_mocked_request("GET", "/")
     with aioresponses() as mocked:
         mocked.get("http://test.com/", body="test")
         resp = await http_client.get("http://test.com/")
 
-        proxy_response = ProxyResponse(mock_request, resp)
+        proxy_response = ProxyResponse(resp)
         await proxy_response.set_response(ResponseType.BASE)
         assert proxy_response.web.status == 200
         assert proxy_response.web.headers == resp.headers
@@ -39,12 +37,11 @@ async def test_proxy_response_set_stream(
     http_client,
 ):  # pylint: disable=redefined-outer-name
     """Test the ProxyResponse class when the response is set to stream"""
-    mock_request = make_mocked_request("GET", "/")
     with aioresponses() as mocked:
         mocked.get("http://test.com/")
         resp = await http_client.get("http://test.com/")
 
-        proxy_response = ProxyResponse(mock_request, resp)
+        proxy_response = ProxyResponse(resp)
         await proxy_response.set_response(ResponseType.STREAM)
         assert proxy_response.web.status == 200
         assert "Transfer-Encoding" in proxy_response.web.headers
@@ -55,12 +52,11 @@ async def test_proxy_response_response_already_set(
     http_client,
 ):  # pylint: disable=redefined-outer-name
     """Test the ProxyResponse class when the response is already set"""
-    mock_request = make_mocked_request("GET", "/")
     with aioresponses() as mocked:
         mocked.get("http://test.com/", body="test")
         resp = await http_client.get("http://test.com/")
 
-        proxy_response = ProxyResponse(mock_request, resp)
+        proxy_response = ProxyResponse(resp)
         await proxy_response.set_response(ResponseType.BASE)
 
         with pytest.raises(ValueError):
@@ -69,7 +65,6 @@ async def test_proxy_response_response_already_set(
 
 async def test_proxy_response_not_set():  # pylint: disable=redefined-outer-name
     """Test the ProxyResponse class when the response is not set"""
-    mock_request = make_mocked_request("GET", "/")
-    proxy_response = ProxyResponse(mock_request, None)
+    proxy_response = ProxyResponse(None)
     with pytest.raises(ValueError):
         proxy_response.web  # pylint: disable=pointless-statement

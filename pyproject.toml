@@ -3,10 +3,8 @@ name = "aiorp"
 version = "0.1.0"
 description = "A simple reverse proxy library based on aiohttp."
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = [
-    "aiohttp>=3.11.12",
-]
+requires-python = ">=3.10"
+dependencies = ["aiohttp>=3.11.12"]
 
 [build-system]
 requires = ["hatchling"]
@@ -14,11 +12,11 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
-    "aioresponses>=0.7.8",
-    "pre-commit>=4.1.0",
-    "pytest>=8.3.5",
-    "pytest-aiohttp>=1.1.0",
-    "pytest-xdist>=3.6.1",
+  "aioresponses>=0.7.8",
+  "pre-commit>=4.1.0",
+  "pytest>=8.3.5",
+  "pytest-aiohttp>=1.1.0",
+  "pytest-xdist>=3.6.1",
 ]
 
 [tool.uv]
@@ -40,46 +38,44 @@ jobs = 0
 [tool.pylint.message_control]
 max-line-length = 99
 disable = [
-    "import-error",
-    "missing-module-docstring",
-    "missing-function-docstring",
-    "unsupported-binary-operation",
-    "raise-missing-from",
-    "invalid-name",
-    "too-many-arguments",
-    "unused-argument",
-    "logging-fstring-interpolation",
+  "import-error",
+  "missing-module-docstring",
+  "missing-function-docstring",
+  "unsupported-binary-operation",
+  "raise-missing-from",
+  "invalid-name",
+  "too-many-arguments",
+  "unused-argument",
+  "logging-fstring-interpolation",
+  "too-few-public-methods",
+  "protected-access",
 ]
 
 [tool.pylint.reports]
 output-format = "colorized"
 
 [tool.pylint.format]
-logging-modules = [
-  "logging",
-  "structlog"
-]
+logging-modules = ["logging", "structlog"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
 addopts = "-ra -q"
-python_files = [
-    "test_*.py",
-]
-testpaths = [
-    "tests/unit",
-    "tests/integration"
-]
+python_files = ["test_*.py"]
+testpaths = ["tests/unit", "tests/integration"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 filterwarnings = [
-    # When handler is the as class with __call__ method it results in a false-positive warning
-    "ignore:Bare functions are deprecated, use async ones:DeprecationWarning"
+  # When handler is the as class with __call__ method it results in a false-positive warning
+  "ignore:Bare functions are deprecated, use async ones:DeprecationWarning",
 ]
 markers = [
-    "request: mark test as request",
-    "response: mark test as response",
-    "unit: mark test as unit",
-    "integration: mark test as integration",
-    "current: mark test as current",
+  "request: mark test as request",
+  "response: mark test as response",
+  "unit: mark test as unit",
+  "integration: mark test as integration",
+  "current: mark test as current",
 ]
+
+[tool.pyright]
+venvPath = "./"
+venv = ".venv"

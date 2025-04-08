@@ -1,7 +1,6 @@
 from typing import Callable
 
-import aiohttp
-from aiohttp.client import ClientSession
+from aiohttp import ClientSession, client, web
 from yarl import URL
 
 from aiorp.request import ProxyRequest
@@ -18,10 +17,31 @@ class ProxyContext:
     ):
         self.url = url
         self.state = state
-        self.session_factory: SessionFactory = session_factory or aiohttp.ClientSession
-        self.request: ProxyRequest | None = None
-        self.response: ProxyResponse | None = None
+        self.session_factory: SessionFactory = session_factory or ClientSession
+        self._request: ProxyRequest | None = None
+        self._response: ProxyResponse | None = None
         self._session: ClientSession | None = None
+
+    @property
+    def response(self):
+        if self.response is None:
+            raise ValueError("Response is not yet set")
+        return self.response
+
+    @property
+    def request(self):
+        if self.request is None:
+            raise ValueError("Request is not yet set")
+        return self.request
+
+    def _set_request(self, request: web.Request):
+        self._request = ProxyRequest(
+            url=self.url,
+            in_req=request,
+        )
+
+    def _set_response(self, response: client.ClientResponse):
+        self._response = ProxyResponse(in_resp=response)
 
     @property
     def session(self) -> ClientSession:

@@ -8,10 +8,10 @@ from aiorp.base_handler import BaseHandler
 SocketResponse = Union[web.WebSocketResponse, client.ClientWebSocketResponse]
 MessageHandler = Callable[[SocketResponse, SocketResponse], Awaitable]
 ClientMessageHandler = Callable[
-    [client.ClientWebSocketResponse, web.WebSocketResponse], Awaitable
+    [web.WebSocketResponse, client.ClientWebSocketResponse], Awaitable
 ]
 WebMessageHandler = Callable[
-    [web.WebSocketResponse, client.ClientWebSocketResponse], Awaitable
+    [client.ClientWebSocketResponse, web.WebSocketResponse], Awaitable
 ]
 
 
@@ -21,10 +21,10 @@ class WsProxyHandler(BaseHandler):
     def __init__(
         self,
         *args,
-        message_handler: MessageHandler = None,
-        client_message_handler: ClientMessageHandler = None,
-        web_message_handler: WebMessageHandler = None,
-        **kwargs
+        message_handler: MessageHandler | None = None,
+        client_message_handler: ClientMessageHandler | None = None,
+        web_message_handler: WebMessageHandler | None = None,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
 
@@ -109,7 +109,7 @@ class WsProxyHandler(BaseHandler):
         try:
             # Forward messages from source to target
             await self._proxy_messages(ws_source, ws_target)
-        except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+        except (asyncio.CancelledError, asyncio.TimeoutError):
             # Connection might be broken, so we should close the target
             if not ws_target.closed:
                 await ws_target.close(code=1001, message=b"Server disconnected")
@@ -141,7 +141,7 @@ class WsProxyHandler(BaseHandler):
                 if not ws_target.closed:
                     await ws_target.close(
                         code=msg.data.code,
-                        message=msg.data.message if msg.data else None,
+                        message=msg.data.message if msg.data else b"",
                     )
                 break
             elif msg.type in (

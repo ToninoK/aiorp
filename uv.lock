@@ -1,5 +1,9 @@
 version = 1
 requires-python = ">=3.13"
+resolution-markers = [
+    "platform_python_implementation != 'PyPy'",
+    "platform_python_implementation == 'PyPy'",
+]
 
 [[package]]
 name = "aiohappyeyeballs"

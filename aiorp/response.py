@@ -28,25 +28,25 @@ class ProxyResponse:
         in_resp: client.ClientResponse,
     ):
         self.in_resp: client.ClientResponse = in_resp
-        self._response: web.StreamResponse | None = None
+        self._web: web.StreamResponse | None = None
         self._content: bytes | None = None
 
     @property
     def web(
         self,
     ) -> web.StreamResponse | web.Response:
-        if self._response is None:
+        if self._web is None:
             raise ValueError("Response has not been set")
-        return self._response
+        return self._web
 
     async def set_response(self, response_type: ResponseType):
-        if self._response is not None:
+        if self._web is not None:
             raise ValueError("Response can only be set once")
         if response_type == ResponseType.BASE:
             await self._set_base_response()
         elif response_type == ResponseType.STREAM:
             await self._set_stream_response()
-        return self._response
+        return self._web
 
     async def _set_stream_response(self):
         stream_resp = web.StreamResponse(
@@ -54,7 +54,7 @@ class ProxyResponse:
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
         )
-        self._response = stream_resp
+        self._web = stream_resp
 
     async def _set_base_response(self):
         text = await self.in_resp.text()
@@ -76,4 +76,4 @@ class ProxyResponse:
             # We load just text, web.Response takes care of encoding if needed
             text=text,
         )
-        self._response = resp
+        self._web = resp

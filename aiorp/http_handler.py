@@ -3,15 +3,14 @@ import json
 import logging
 from collections import defaultdict
 from enum import IntEnum
-from typing import Awaitable, Callable
+from typing import Any, AsyncGenerator, Awaitable, Callable
 
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
 
 from aiorp.base_handler import BaseHandler
 from aiorp.context import ProxyContext
-from aiorp.request import ProxyRequest
-from aiorp.response import ProxyResponse, ResponseType
+from aiorp.response import ResponseType
 
 log = logging.getLogger(__name__)
 
@@ -71,9 +70,7 @@ class HttpProxyHandler(BaseHandler):
         """Handle incoming requests
 
         This method is called when the handler is used as a route handler in an aiohttp.web app.
-        It executes the before handlers, proxies the request, and executes the after handlers.
-        If an error occurs during the external request, the error_handler is invoked if set,
-        otherwise an HTTPInternalServerError is raised.
+        It executes the middleware chain that was set by the users.
 
         :param request: The incoming request to proxy
         :returns: The response from the external server
@@ -82,31 +79,23 @@ class HttpProxyHandler(BaseHandler):
         if self._context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
-        # Build the proxy request object
-        proxy_request = ProxyRequest(
-            url=self._context.url,
-            in_req=request,
-        )
+        # Set the request to context
+        self._context._set_request(request)
 
-        # Check if the path should be rewritten and do so
+        # Check if the path should be rewritten and if it should do so
         if self._rewrite_from and self._rewrite_to:
-            proxy_request.rewrite_path(
+            self._context.request.rewrite_path(
                 self._rewrite_from,
                 self._rewrite_to,
             )
 
-        self._context.request = proxy_request
-
         # Execute the middleware chain
         await self._execute_middleware_chain()
 
-        if self._context.response is None:
-            raise ValueError("Response not set")
-
-        try:
+        # Check if the web response was set and set it if it wasn't
+        if self._context.response._web is None:
             await self._context.response.set_response(response_type=ResponseType.BASE)
-        except ValueError:
-            pass
+
         # Return the response
         return self._context.response.web
 
@@ -117,16 +106,17 @@ class HttpProxyHandler(BaseHandler):
         with the pre-yield code executing in that order, and the post-yield
         executing in reverse order ("russian doll model").
         """
+        if not self._context:
+            raise ValueError("Cannot execute handlers before setting context")
+
         sorted_middlewares = sorted(self._middlewares.keys())
         middleware_generators = defaultdict(list)
 
         # Start all middleware generators and store them
         for order_key in sorted_middlewares:
             middleware_funcs = self._middlewares[order_key]
-            generators = [func(self._context).__aiter__() for func in middleware_funcs]
-            await asyncio.gather(
-                *[gen.__anext__() for gen in generators], return_exceptions=True
-            )
+            generators = [aiter(func(self._context)) for func in middleware_funcs]
+            await asyncio.gather(*[anext(gen) for gen in generators])
             middleware_generators[order_key] = generators
 
         # Execute the actual request
@@ -135,7 +125,7 @@ class HttpProxyHandler(BaseHandler):
         # Resume all middleware generators in reverse order
         for order_key in reversed(sorted_middlewares):
             await asyncio.gather(
-                *[gen.__anext__() for gen in middleware_generators[order_key]]
+                *[anext(gen, None) for gen in middleware_generators[order_key]]
             )
 
     async def _proxy_middleware(self, context: ProxyContext):
@@ -156,7 +146,7 @@ class HttpProxyHandler(BaseHandler):
         self._raise_for_status(resp)
 
         # Build the proxy response object from the target response
-        context.response = ProxyResponse(in_resp=resp)
+        context._set_response(resp)
 
     def _raise_for_status(self, response: client.ClientResponse):
         """Check status of request and handle the error properly
@@ -200,7 +190,7 @@ class HttpProxyHandler(BaseHandler):
 
         return decorator
 
-    def early(self, func: Callable[[ProxyContext], Awaitable]):
+    def early(self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]):
         """Register an early middleware that can yield
 
         This middleware is registered as first, meaning the code before yield
@@ -210,19 +200,7 @@ class HttpProxyHandler(BaseHandler):
         """
         return self.middleware(MiddlewarePhase.EARLY)(func)
 
-    def standard(self, func: Callable[[ProxyContext], Awaitable]):
-        """Register a standard middleware that can yield
-
-        This middleware is registered between the early and late middleware.
-        The code before yield will act after the early middleware, but before
-        late middleware. The code after yield acts after middleware registered late
-        but before middleware registered early.
-
-        :param func: The middlware function which yields
-        """
-        return self.middleware(MiddlewarePhase.STANDARD)(func)
-
-    def late(self, func: Callable[[ProxyContext], Awaitable]):
+    def late(self, func: Callable[[ProxyContext], AsyncGenerator[None]]):
         """Register a late middleware that can yield
 
         This middleware is registered the last.

@@ -30,7 +30,7 @@ async def proxy_middleware1(context: ProxyContext):
     log.info(context.response.web.status)
 
 
-@handler.standard
+@handler.middleware()
 async def proxy_middleware2(context: ProxyContext):
     # Do request processing here
     log.info("Standard middleware: Starting pre-processing")

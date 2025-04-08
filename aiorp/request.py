@@ -45,7 +45,7 @@ class ProxyRequest:
         self.url = self.url.with_path(self.in_req.path)
 
         # Update Host header with target server host
-        self.headers.update({"Host": self.url.host})
+        self.headers.update(host=self.url.host or "")
 
         # Remove hop by hop headers
         for header in self.HOP_BY_HOP_HEADERS:
@@ -95,7 +95,7 @@ class ProxyRequest:
             self.headers[
                 "X-Forwarded-For"
             ] = f"{self.in_req.headers['X-Forwarded-For']}, {self.in_req.remote}"
-        else:
+        elif self.in_req.remote:
             self.headers["X-Forwarded-For"] = self.in_req.remote
 
     async def load_content(self):
