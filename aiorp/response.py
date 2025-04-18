@@ -35,11 +35,21 @@ class ProxyResponse:
     def web(
         self,
     ) -> web.StreamResponse | web.Response:
+        """Access the web response
+
+        :returns: A response, either StreamResponse or Response
+        :raises ValueError: when response is not set yet
+        """
         if self._web is None:
             raise ValueError("Response has not been set")
         return self._web
 
     async def set_response(self, response_type: ResponseType):
+        """Set the response using the given response type
+
+        :param response_type: The type of response to set
+        :raises ValueError: when attempted to set the response a second time
+        """
         if self._web is not None:
             raise ValueError("Response can only be set once")
         if response_type == ResponseType.BASE:
@@ -49,6 +59,7 @@ class ProxyResponse:
         return self._web
 
     async def _set_stream_response(self):
+        """Convert incoming response to stream response"""
         stream_resp = web.StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
@@ -57,6 +68,7 @@ class ProxyResponse:
         self._web = stream_resp
 
     async def _set_base_response(self):
+        """Convert incoming response to base response"""
         text = await self.in_resp.text()
         # Don't set content_type and charset if it's already in headers
         # This avoids duplicate/conflicting settings
