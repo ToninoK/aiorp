@@ -1,5 +1,6 @@
 import pytest
 from aiohttp import ClientSession
+from aiohttp.test_utils import make_mocked_request
 from aioresponses import aioresponses
 
 from aiorp.response import ProxyResponse, ResponseType
@@ -40,10 +41,14 @@ async def test_proxy_response_set_stream(
     with aioresponses() as mocked:
         mocked.get("http://test.com/")
         resp = await http_client.get("http://test.com/")
-
+        req = make_mocked_request("GET", "/")
         proxy_response = ProxyResponse(resp)
         await proxy_response.set_response(ResponseType.STREAM)
+
         assert proxy_response.web.status == 200
+        assert "Transfer-Encoding" not in proxy_response.web.headers
+
+        await proxy_response.web.prepare(req)
         assert "Transfer-Encoding" in proxy_response.web.headers
         assert proxy_response.web.headers["Transfer-Encoding"] == "chunked"
 
