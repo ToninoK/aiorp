@@ -24,15 +24,15 @@ class ProxyContext:
 
     @property
     def response(self):
-        if self.response is None:
+        if self._response is None:
             raise ValueError("Response is not yet set")
-        return self.response
+        return self._response
 
     @property
     def request(self):
-        if self.request is None:
+        if self._request is None:
             raise ValueError("Request is not yet set")
-        return self.request
+        return self._request
 
     def _set_request(self, request: web.Request):
         self._request = ProxyRequest(
