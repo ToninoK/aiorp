@@ -1,31 +1,13 @@
-from aiohttp.web import Application, WebSocketResponse, WSMsgType
+import pytest
+from aiohttp import web
 
 
-async def ws_echo_server(aiohttp_server):
-    app = Application()
+def ping(request: web.Request) -> web.Response:
+    return web.Response(text="pong")
 
-    async def ws_handler(request):
-        ws = WebSocketResponse()
-        await ws.prepare(request)
 
-        while True:
-            msg = await ws.receive()
-            if msg.type == WSMsgType.TEXT:
-                await ws.send_str(msg.data)
-            elif msg.type == WSMsgType.BINARY:
-                await ws.send_bytes(msg.data)
-            elif msg.type == WSMsgType.PING:
-                await ws.pong()
-            elif msg.type in (
-                WSMsgType.CLOSING,
-                WSMsgType.CLOSED,
-                WSMsgType.ERROR,
-                WSMsgType.CLOSE,
-            ):
-                break
-
-        ws.close()
-        return ws
-
-    app.add_routes("/{path:.*}", ws_handler)
-    return aiohttp_server(app)
+@pytest.fixture
+async def simple_server(aiohttp_server):
+    app = web.Application()
+    app.router.add_get("/", ping)
+    return await aiohttp_server(app)
