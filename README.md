@@ -6,11 +6,11 @@ but also offering a simple interface to create a reverse-proxy with complex func
 ## TODO
 
 - [ ] Tests
-  - [ ] Response unit tests
-  - [ ] Request unit tests
+  - [x] Response unit tests
+  - [x] Request unit tests
+  - [x] Context unit tests
   - [ ] HTTP Proxy handler unit tests
   - [ ] WS Proxy handler unit tests
-  - [ ] Setup test target server(s)
   - [ ] Integration testing
 - [ ] Improve and refactor WS proxy
 - [ ] Set up documentation

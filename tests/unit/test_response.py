@@ -1,5 +1,4 @@
 import pytest
-from aiohttp import ClientSession
 from aiohttp.test_utils import make_mocked_request
 from aioresponses import aioresponses
 
@@ -10,13 +9,6 @@ pytestmark = [
     pytest.mark.response,
     pytest.mark.unit,
 ]
-
-
-@pytest.fixture
-async def http_client():
-    session = ClientSession()
-    yield session
-    await session.close()
 
 
 async def test_proxy_response_set_base(

@@ -69,11 +69,12 @@ filterwarnings = [
   "ignore:Bare functions are deprecated, use async ones:DeprecationWarning",
 ]
 markers = [
+  "context: mark test as context",
+  "current: mark test as current",
+  "integration: mark test as integration",
   "request: mark test as request",
   "response: mark test as response",
   "unit: mark test as unit",
-  "integration: mark test as integration",
-  "current: mark test as current",
 ]
 
 [tool.pyright]
