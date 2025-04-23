@@ -161,7 +161,12 @@ class ProxyContext:
     def set_socket_pair(
         self, ws_source: WebSocketResponse, ws_target: ClientWebSocketResponse
     ):
-        """Set the socket pair used for tunneling messages"""
+        """Set the socket pair used for tunneling messages
+
+        Args:
+            ws_source: The WebSocketResponse to set
+            ws_target: The ClientWebSocketResponse to set
+        """
         self._ws_source = ws_source
         self._ws_target = ws_target
 
