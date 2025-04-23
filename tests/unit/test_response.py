@@ -5,12 +5,12 @@ from aioresponses import aioresponses
 from aiorp.response import ProxyResponse, ResponseType
 
 pytestmark = [
-    pytest.mark.asyncio,
     pytest.mark.response,
     pytest.mark.unit,
 ]
 
 
+@pytest.mark.asyncio
 async def test_proxy_response_set_base(
     http_client,
 ):  # pylint: disable=redefined-outer-name
@@ -26,6 +26,7 @@ async def test_proxy_response_set_base(
         assert proxy_response.web.body == b"test"
 
 
+@pytest.mark.asyncio
 async def test_proxy_response_set_stream(
     http_client,
 ):  # pylint: disable=redefined-outer-name
@@ -45,6 +46,7 @@ async def test_proxy_response_set_stream(
         assert proxy_response.web.headers["Transfer-Encoding"] == "chunked"
 
 
+@pytest.mark.asyncio
 async def test_proxy_response_response_already_set(
     http_client,
 ):  # pylint: disable=redefined-outer-name

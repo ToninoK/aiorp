@@ -49,6 +49,7 @@ disable = [
   "logging-fstring-interpolation",
   "too-few-public-methods",
   "protected-access",
+  "redefined-outer-name",
 ]
 
 [tool.pylint.reports]
@@ -75,6 +76,7 @@ markers = [
   "request: mark test as request",
   "response: mark test as response",
   "unit: mark test as unit",
+  "http_handler: mark test as http handler",
 ]
 
 [tool.pyright]

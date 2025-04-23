@@ -1,7 +1,7 @@
 from typing import Any
 
-from aiohttp import client, web
-from multidict import CIMultiDict, MultiMapping
+from aiohttp import web
+from multidict import CIMultiDict
 from yarl import URL
 
 
@@ -38,7 +38,7 @@ class ProxyRequest:
         self.url: URL = url
         self.headers: CIMultiDict[str] = CIMultiDict(in_req.headers)
         self.method: str = in_req.method
-        self.params: MultiMapping[str] = in_req.query
+        self.params: dict = dict(in_req.query)
         self.content: bytes | Any = None
 
         # Update path to match the incoming request
@@ -57,28 +57,6 @@ class ProxyRequest:
 
         # Set the X-Forwarded-For header
         self.set_x_forwarded_for()
-
-    async def execute(
-        self,
-        session: client.ClientSession,
-        **kwargs,
-    ):
-        """Execute the request using the provided session object
-
-        Additionally, apply any optional keyword arguments to the request.
-
-        :param session: The session object to use for the request
-        :param kwargs: Optional keyword arguments to apply when executing the request
-        """
-        await self.load_content()
-        return await session.request(
-            method=self.in_req.method,
-            url=self.url,
-            headers=self.headers,
-            params=self.params,
-            data=self.content,
-            **kwargs,
-        )
 
     def set_x_forwarded_for(self, clean: bool = False):
         """Set the X-Forwarded related headers

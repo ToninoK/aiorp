@@ -115,7 +115,7 @@ class HttpProxyHandler(BaseHandler):
         for order_key in sorted_middlewares:
             middleware_funcs = self._middlewares[order_key]
             generators = [aiter(func(self._context)) for func in middleware_funcs]
-            await asyncio.gather(*[anext(gen) for gen in generators])
+            await asyncio.gather(*[anext(gen, None) for gen in generators])
             middleware_generators[order_key] = generators
 
         # Execute the actual request
@@ -138,8 +138,13 @@ class HttpProxyHandler(BaseHandler):
         if context.request is None:
             raise ValueError("ProxyRequest not set")
         # Execute the request and check the response
-        resp = await context.request.execute(
-            context.session,
+        await context.request.load_content()
+        resp = await context.session.request(
+            url=context.request.url,
+            method=context.request.method,
+            params=context.request.params,
+            headers=context.request.headers,
+            data=context.request.content,
             **self.connection_options,
         )
         self._raise_for_status(resp)
@@ -183,7 +188,7 @@ class HttpProxyHandler(BaseHandler):
         :param order: Integer representing order of middleware registration.
         """
 
-        def decorator(func):
+        def decorator(func: Callable[[ProxyContext], AsyncGenerator[None, Any]]):
             self._middlewares[order].append(func)
             return func
 
