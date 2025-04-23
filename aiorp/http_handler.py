@@ -19,7 +19,7 @@ ProxyMiddleware = Callable[[ProxyContext], Awaitable]
 
 
 class MiddlewarePhase(IntEnum):
-    """Middleware phase enumeration"""
+    """Middleware phase enumeration."""
 
     EARLY = 0  # Authentication, security checks
     STANDARD = 500  # Logging, tracking, most transformations
@@ -27,7 +27,7 @@ class MiddlewarePhase(IntEnum):
 
 
 class HttpProxyHandler(BaseHandler):
-    """A handler for proxying requests to a remote server
+    """A handler for proxying requests to a remote server.
 
     This handler is used to proxy requests to a remote server.
     It has a __call__ method that is used to handle incoming requests.
@@ -35,18 +35,24 @@ class HttpProxyHandler(BaseHandler):
     It executes specified before and after handlers, before and after the
     incoming request is proxied.
 
-    :param error_handler: Callable that is called when an error occurs during the proxied request
-    :param context: The options to use when proxying requests
-        Defines the URL to proxy requests to and the session to use. It can be None at init, but
-        it must be set before attempting to proxy a request.
-    :param rewrite_from: The path to rewrite from, if specified rewrite_to must also be set
-    :param rewrite_to: The path to rewrite to, if specified rewrite_from must also be set
-    :param connection_options: Additional options for establishing the session connection.
+    Args:
+        error_handler: Callable that is called when an error occurs during the proxied request.
 
-    :raises: ValueError
+    Raises:
+        ValueError: If connection options contain invalid keys.
     """
 
-    def __init__(self, *args, error_handler: ErrorHandler = None, **kwargs):
+    def __init__(self, *args: Any, error_handler: ErrorHandler = None, **kwargs: Any):
+        """Initialize the HTTP proxy handler.
+
+        Args:
+            *args: Variable length argument list.
+            error_handler: Optional callable for handling errors during proxied requests.
+            **kwargs: Arbitrary keyword arguments.
+
+        Raises:
+            ValueError: If connection options contain invalid keys.
+        """
         super().__init__(*args, **kwargs)
         if self.connection_options is not None and any(
             key in self.connection_options
@@ -67,14 +73,20 @@ class HttpProxyHandler(BaseHandler):
         self._middlewares = defaultdict(list)
 
     async def __call__(self, request: web.Request) -> web.Response | web.StreamResponse:
-        """Handle incoming requests
+        """Handle incoming requests.
 
         This method is called when the handler is used as a route handler in an aiohttp.web app.
         It executes the middleware chain that was set by the users.
 
-        :param request: The incoming request to proxy
-        :returns: The response from the external server
-        :raises: ValueError, HTTPInternalServerError
+        Args:
+            request: The incoming request to proxy.
+
+        Returns:
+            The response from the external server.
+
+        Raises:
+            ValueError: If proxy context is not set.
+            HTTPInternalServerError: If there's an error during request processing.
         """
         if self._context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
@@ -104,6 +116,9 @@ class HttpProxyHandler(BaseHandler):
         The chain is executed in order the middlewares were registered,
         with the pre-yield code executing in that order, and the post-yield
         executing in reverse order ("russian doll model").
+
+        Raises:
+            ValueError: If context is not set before execution.
         """
         if not self._context:
             raise ValueError("Cannot execute handlers before setting context")
@@ -133,7 +148,11 @@ class HttpProxyHandler(BaseHandler):
         It executes after all other user provided middlewares, and
         it proxies the request to the target destination.
 
-        :param context: The proxy context holding the request and response information
+        Args:
+            context: The proxy context holding the request and response information.
+
+        Raises:
+            ValueError: If proxy request is not set.
         """
         if context.request is None:
             raise ValueError("ProxyRequest not set")
@@ -153,14 +172,16 @@ class HttpProxyHandler(BaseHandler):
         context._set_response(resp)
 
     def _raise_for_status(self, response: client.ClientResponse):
-        """Check status of request and handle the error properly
+        """Check status of request and handle the error properly.
 
         In case of an error, the error_handler is called if set, otherwise an
         HTTPInternalServerError is raised with the error message.
 
-        :param response: The response from the external server
-        :returns: None
-        :raises: HTTPInternalServerError
+        Args:
+            response: The response from the external server.
+
+        Raises:
+            HTTPInternalServerError: If the response status indicates an error.
         """
         try:
             response.raise_for_status()
@@ -178,14 +199,23 @@ class HttpProxyHandler(BaseHandler):
                 ),
             )
 
-    def middleware(self, order=MiddlewarePhase.STANDARD):
-        """Register a middleware with explicit ordering
+    def middleware(
+        self, order: int = MiddlewarePhase.STANDARD
+    ) -> Callable[
+        [Callable[[ProxyContext], AsyncGenerator[None, Any]]],
+        Callable[[ProxyContext], AsyncGenerator[None, Any]],
+    ]:
+        """Register a middleware with explicit ordering.
 
         It will be registered depending on the order and relative to
         other defined middlewares. A lower number means sooner registration,
         while a higher number results in a later registration.
 
-        :param order: Integer representing order of middleware registration.
+        Args:
+            order: Integer representing order of middleware registration.
+
+        Returns:
+            A decorator function that registers the middleware.
         """
 
         def decorator(func: Callable[[ProxyContext], AsyncGenerator[None, Any]]):
@@ -194,23 +224,35 @@ class HttpProxyHandler(BaseHandler):
 
         return decorator
 
-    def early(self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]):
-        """Register an early middleware that can yield
+    def early(
+        self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
+    ) -> Callable[[ProxyContext], AsyncGenerator[None, Any]]:
+        """Register an early middleware that can yield.
 
         This middleware is registered as first, meaning the code before yield
         will act before any other one, but code after yield will execute the last.
 
-        :param func: The middlware function which yields
+        Args:
+            func: The middleware function which yields.
+
+        Returns:
+            The decorated middleware function.
         """
         return self.middleware(MiddlewarePhase.EARLY)(func)
 
-    def late(self, func: Callable[[ProxyContext], AsyncGenerator[None]]):
-        """Register a late middleware that can yield
+    def late(
+        self, func: Callable[[ProxyContext], AsyncGenerator[None]]
+    ) -> Callable[[ProxyContext], AsyncGenerator[None]]:
+        """Register a late middleware that can yield.
 
         This middleware is registered the last.
         The code before yield will act after all other middlewares. The code after
         the yield runs before any other middleware.
 
-        :param func: The middleware function which yields
+        Args:
+            func: The middleware function which yields.
+
+        Returns:
+            The decorated middleware function.
         """
         return self.middleware(MiddlewarePhase.LATE)(func)

@@ -16,7 +16,7 @@ WebMessageHandler = Callable[
 
 
 class WsProxyHandler(BaseHandler):
-    """WebSocket handler"""
+    """WebSocket handler."""
 
     def __init__(
         self,
@@ -26,6 +26,19 @@ class WsProxyHandler(BaseHandler):
         web_message_handler: WebMessageHandler | None = None,
         **kwargs,
     ):
+        """Initialize the WebSocket proxy handler.
+
+        Args:
+            *args: Variable length argument list.
+            message_handler: Optional handler for all message types.
+            client_message_handler: Optional handler for client messages.
+            web_message_handler: Optional handler for web messages.
+            **kwargs: Arbitrary keyword arguments.
+
+        Raises:
+            ValueError: If connection options contain 'url' or if both message_handler and
+                client/web_message_handlers are specified.
+        """
         super().__init__(*args, **kwargs)
 
         if self.connection_options is not None and "url" in self.connection_options:
@@ -98,13 +111,16 @@ class WsProxyHandler(BaseHandler):
         return ws_client
 
     async def _sock_to_sock(self, ws_source: SocketResponse, ws_target: SocketResponse):
-        """Forwards messages from source socket to target socket
+        """Forwards messages from source socket to target socket.
 
         When this function is finished, both sockets will be closed.
 
-        :param ws_source: Source socket
-        :param ws_target: Target socket
-        :raises Exception: If an unexpected exception occurs (not a timeout or connection error)
+        Args:
+            ws_source: Source socket.
+            ws_target: Target socket.
+
+        Raises:
+            Exception: If an unexpected exception occurs (not a timeout or connection error).
         """
         try:
             # Forward messages from source to target
@@ -126,7 +142,12 @@ class WsProxyHandler(BaseHandler):
     async def _proxy_messages(
         self, ws_source: SocketResponse, ws_target: SocketResponse
     ):
-        """Forwards messages from source socket to target socket"""
+        """Forwards messages from source socket to target socket.
+
+        Args:
+            ws_source: Source socket.
+            ws_target: Target socket.
+        """
         while True:
             msg = await ws_source.receive()
             if msg.type == web.WSMsgType.TEXT:

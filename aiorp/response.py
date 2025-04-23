@@ -4,29 +4,35 @@ from aiohttp import client, web
 
 
 class ResponseType(Enum):
-    """Response type enumeration"""
+    """Response type enumeration."""
 
     STREAM = "STREAM"
     BASE = "BASE"
 
 
 class ProxyResponse:
-    """Proxy response object
+    """Proxy response object.
 
     This object encapsulates the incoming request and the response from target server.
     It exposes a method to set the response object which can then be modified before being
     returned to the client.
 
-    :param in_req: The incoming request object
-    :param in_resp: The incoming response object
-    :param proxy_attributes: Additional attributes to store in the response object
-        This is where the proxy context will be stored and accessible.
+    Args:
+        in_req: The incoming request object.
+        in_resp: The incoming response object.
+        proxy_attributes: Additional attributes to store in the response object.
+            This is where the proxy context will be stored and accessible.
     """
 
     def __init__(
         self,
         in_resp: client.ClientResponse,
     ):
+        """Initialize the proxy response object.
+
+        Args:
+            in_resp: The incoming response object.
+        """
         self.in_resp: client.ClientResponse = in_resp
         self._web: web.StreamResponse | None = None
         self._content: bytes | None = None
@@ -35,20 +41,29 @@ class ProxyResponse:
     def web(
         self,
     ) -> web.StreamResponse | web.Response:
-        """Access the web response
+        """Access the web response.
 
-        :returns: A response, either StreamResponse or Response
-        :raises ValueError: when response is not set yet
+        Returns:
+            A response, either StreamResponse or Response.
+
+        Raises:
+            ValueError: When response is not set yet.
         """
         if self._web is None:
             raise ValueError("Response has not been set")
         return self._web
 
     async def set_response(self, response_type: ResponseType):
-        """Set the response using the given response type
+        """Set the response using the given response type.
 
-        :param response_type: The type of response to set
-        :raises ValueError: when attempted to set the response a second time
+        Args:
+            response_type: The type of response to set.
+
+        Returns:
+            The set web response.
+
+        Raises:
+            ValueError: When attempted to set the response a second time.
         """
         if self._web is not None:
             raise ValueError("Response can only be set once")
@@ -59,7 +74,7 @@ class ProxyResponse:
         return self._web
 
     async def _set_stream_response(self):
-        """Convert incoming response to stream response"""
+        """Convert incoming response to stream response."""
         stream_resp = web.StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
@@ -68,7 +83,7 @@ class ProxyResponse:
         self._web = stream_resp
 
     async def _set_base_response(self):
-        """Convert incoming response to base response"""
+        """Convert incoming response to base response."""
         text = await self.in_resp.text()
         # Don't set content_type and charset if it's already in headers
         # This avoids duplicate/conflicting settings
