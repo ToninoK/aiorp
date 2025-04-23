@@ -1,6 +1,7 @@
 from enum import Enum
 
 from aiohttp import client, web
+from aiohttp.web import Response, StreamResponse
 
 
 class ResponseType(Enum):
@@ -37,7 +38,7 @@ class ProxyResponse:
     @property
     def web(
         self,
-    ) -> web.StreamResponse | web.Response:
+    ) -> StreamResponse | Response:
         """Access the web response.
 
         Returns:
@@ -51,8 +52,8 @@ class ProxyResponse:
         return self._web
 
     async def set_response(
-        self, response_type: ResponseType
-    ) -> web.StreamResponse | web.Response:
+        self, response_type: ResponseType = ResponseType.BASE
+    ) -> StreamResponse | Response:
         """Set the response using the given response type.
 
         Args:
@@ -66,22 +67,22 @@ class ProxyResponse:
         """
         if self._web is not None:
             raise ValueError("Response can only be set once")
-        if response_type == ResponseType.BASE:
-            await self._set_base_response()
-        elif response_type == ResponseType.STREAM:
-            await self._set_stream_response()
+        if response_type == ResponseType.STREAM:
+            self._web = await self._get_stream_response()
+        else:
+            self._web = await self._get_base_response()
         return self._web
 
-    async def _set_stream_response(self):
+    async def _get_stream_response(self):
         """Convert incoming response to stream response."""
         stream_resp = web.StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
         )
-        self._web = stream_resp
+        return stream_resp
 
-    async def _set_base_response(self):
+    async def _get_base_response(self):
         """Convert incoming response to base response."""
         text = await self.in_resp.text()
         # Don't set content_type and charset if it's already in headers
@@ -102,4 +103,4 @@ class ProxyResponse:
             # We load just text, web.Response takes care of encoding if needed
             text=text,
         )
-        self._web = resp
+        return resp

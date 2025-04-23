@@ -167,7 +167,6 @@ class HTTPProxyHandler(BaseHandler):
             **self.connection_options,
         )
         self._raise_for_status(resp)
-
         # Build the proxy response object from the target response
         context._set_response(resp)
 
