@@ -82,11 +82,10 @@ class HttpProxyHandler(BaseHandler):
         # Set the request to context
         self._context._set_request(request)
 
-        # Check if the path should be rewritten and if it should do so
-        if self._rewrite_from and self._rewrite_to:
+        if self._rewrite:
             self._context.request.rewrite_path(
-                self._rewrite_from,
-                self._rewrite_to,
+                self._rewrite.rfrom,
+                self._rewrite.rto,
             )
 
         # Execute the middleware chain
