@@ -15,8 +15,6 @@ class ProxyRequest:
     Args:
         url: The target server URL.
         in_req: The incoming request object.
-        proxy_attributes: Additional attributes to store in the request object.
-            This is where the proxy context will be stored and accessible.
     """
 
     HOP_BY_HOP_HEADERS = [
@@ -89,7 +87,7 @@ class ProxyRequest:
         if self.method in ["POST", "PUT", "PATCH"] and self.in_req.can_read_body:
             self.content = await self.in_req.read()
 
-    def rewrite_path(self, current, new):
+    def rewrite_path(self, current: str, new: str):
         """Rewrite the path of the request URL from current to new value.
 
         Args:

@@ -23,7 +23,10 @@ class ProxyContext:
     """
 
     def __init__(
-        self, url: URL, session_factory: SessionFactory | None = None, state=None
+        self,
+        url: URL,
+        session_factory: SessionFactory | None = None,
+        state: dict = None,
     ):
         """Initialize the proxy context.
 
@@ -32,15 +35,15 @@ class ProxyContext:
             session_factory: Optional factory function to create client sessions.
             state: Optional state object to store additional context data.
         """
-        self.url = url
-        self.state = state
+        self.url: URL = url
+        self.state: dict = state
         self.session_factory: SessionFactory = session_factory or ClientSession
         self._request: ProxyRequest | None = None
         self._response: ProxyResponse | None = None
         self._session: ClientSession | None = None
 
     @property
-    def response(self):
+    def response(self) -> ProxyResponse:
         """Get the current proxy response.
 
         Returns:
@@ -54,7 +57,7 @@ class ProxyContext:
         return self._response
 
     @property
-    def request(self):
+    def request(self) -> ProxyRequest:
         """Get the current proxy request.
 
         Returns:

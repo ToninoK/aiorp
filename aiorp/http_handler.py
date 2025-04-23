@@ -26,7 +26,7 @@ class MiddlewarePhase(IntEnum):
     LATE = 1000  # Anything you might want to execute last before request is sent out
 
 
-class HttpProxyHandler(BaseHandler):
+class HTTPProxyHandler(BaseHandler):
     """A handler for proxying requests to a remote server.
 
     This handler is used to proxy requests to a remote server.

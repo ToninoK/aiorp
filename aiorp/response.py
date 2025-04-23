@@ -18,10 +18,7 @@ class ProxyResponse:
     returned to the client.
 
     Args:
-        in_req: The incoming request object.
         in_resp: The incoming response object.
-        proxy_attributes: Additional attributes to store in the response object.
-            This is where the proxy context will be stored and accessible.
     """
 
     def __init__(
@@ -53,7 +50,9 @@ class ProxyResponse:
             raise ValueError("Response has not been set")
         return self._web
 
-    async def set_response(self, response_type: ResponseType):
+    async def set_response(
+        self, response_type: ResponseType
+    ) -> web.StreamResponse | web.Response:
         """Set the response using the given response type.
 
         Args:

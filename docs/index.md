@@ -8,4 +8,4 @@ the `aiohttp` builtin package.
 - [Quickstart](./quickstart.md)
 - Advanced Guide
 - [Examples](./examples.md)
-- [Reference](./api_reference/base_handler.md)
+- [Reference](./api_reference/BaseHandler.md)
