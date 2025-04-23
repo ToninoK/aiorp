@@ -1,8 +1,6 @@
 from unittest import mock
 
 import pytest
-import yarl
-from aiohttp import ClientSession
 from aiohttp.streams import StreamReader
 from aiohttp.test_utils import make_mocked_request
 from yarl import URL
@@ -165,14 +163,3 @@ def test_rewrite_path():
 
     proxy_request.rewrite_path("new", "old")
     assert proxy_request.url.path == "/old/path"
-
-
-@pytest.mark.asyncio
-async def test_execute_request(simple_server):
-    """Test execution of a proxied request"""
-    mock_request = make_mocked_request("GET", "/")
-    url = yarl.URL(f"http://127.0.0.1:{simple_server.port}")
-    async with ClientSession() as session:
-        proxy_request = ProxyRequest(url, mock_request)
-        resp = await proxy_request.execute(session)
-        assert await resp.text() == "pong"

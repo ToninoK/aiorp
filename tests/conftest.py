@@ -2,11 +2,11 @@ import pytest
 from aiohttp import ClientSession, web
 
 
-def ping(request: web.Request) -> web.Response:
+async def ping(request: web.Request) -> web.Response:
     return web.Response(text="pong")
 
 
-def yell_path(request: web.Request) -> web.Response:
+async def yell_path(request: web.Request) -> web.Response:
     return web.Response(text=f"{request.path}!!!")
 
 
@@ -14,8 +14,7 @@ def yell_path(request: web.Request) -> web.Response:
 async def simple_server(aiohttp_server):
     app = web.Application()
     app.router.add_get("/", ping)
-    app.router.add_get("/first", yell_path)
-    app.router.add_get("/second", yell_path)
+    app.router.add_get("/yell_path", yell_path)
     return await aiohttp_server(app)
 
 

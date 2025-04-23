@@ -66,7 +66,7 @@ class HttpProxyHandler(BaseHandler):
         self._error_handler = error_handler
         self._middlewares = defaultdict(list)
 
-    async def __call__(self, request: web.Request) -> web.StreamResponse | web.Response:
+    async def __call__(self, request: web.Request) -> web.Response | web.StreamResponse:
         """Handle incoming requests
 
         This method is called when the handler is used as a route handler in an aiohttp.web app.
