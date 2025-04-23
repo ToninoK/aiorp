@@ -36,6 +36,15 @@ class ProxyResponse:
         self._content: bytes | None = None
 
     @property
+    def web_response_set(self) -> bool:
+        """Checks if the web response is set already.
+
+        Returns:
+            A boolean, true if set, false otherwise
+        """
+        return self._web is not None
+
+    @property
     def web(
         self,
     ) -> StreamResponse | Response:
@@ -73,16 +82,16 @@ class ProxyResponse:
             self._web = await self._get_base_response()
         return self._web
 
-    async def _get_stream_response(self):
+    async def _get_stream_response(self) -> StreamResponse:
         """Convert incoming response to stream response."""
-        stream_resp = web.StreamResponse(
+        stream_resp = StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
         )
         return stream_resp
 
-    async def _get_base_response(self):
+    async def _get_base_response(self) -> Response:
         """Convert incoming response to base response."""
         text = await self.in_resp.text()
         # Don't set content_type and charset if it's already in headers
@@ -94,7 +103,7 @@ class ProxyResponse:
             content_type = self.in_resp.content_type
             charset = self.in_resp.charset
 
-        resp = web.Response(
+        resp = Response(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,

@@ -58,9 +58,9 @@ class BaseHandler:
             rewrite: Optional rewrite configuration for modifying request paths.
             connection_options: Optional dictionary of additional connection options.
         """
-        self._context: ProxyContext | None = context
         self._rewrite = rewrite
         self.connection_options = connection_options or {}
+        self.context: ProxyContext | None = context
 
     async def __call__(self, request: web.Request):
         """Handle incoming requests.

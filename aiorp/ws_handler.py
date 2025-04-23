@@ -1,9 +1,11 @@
 import asyncio
+import copy
 from typing import Awaitable, Callable, Union
 
 from aiohttp import client, web
 
 from aiorp.base_handler import BaseHandler
+from aiorp.context import ProxyContext
 
 SocketResponse = Union[web.WebSocketResponse, client.ClientWebSocketResponse]
 MessageHandler = Callable[[SocketResponse, SocketResponse], Awaitable]
@@ -21,9 +23,7 @@ class WsProxyHandler(BaseHandler):
     def __init__(
         self,
         *args,
-        message_handler: MessageHandler | None = None,
-        client_message_handler: ClientMessageHandler | None = None,
-        web_message_handler: WebMessageHandler | None = None,
+        proxy_tunnel: Callable[[ProxyContext], Awaitable] | None = None,
         **kwargs,
     ):
         """Initialize the WebSocket proxy handler.
@@ -46,50 +46,44 @@ class WsProxyHandler(BaseHandler):
                 "The connection options cannot contain the 'url', set it through context instead"
             )
 
-        if message_handler is not None and any(
-            [client_message_handler, web_message_handler]
-        ):
-            raise ValueError(
-                "You can either set message_handler,"
-                " or client_message_handler and web_message_handler, but not both"
-            )
-
         self._default_timeout = client.ClientWSTimeout(ws_receive=30)
-        self._client_message_handler = (
-            client_message_handler or message_handler or self._sock_to_sock
-        )
-        self._web_message_handler = (
-            web_message_handler or message_handler or self._sock_to_sock
-        )
-        self._active_sockets = set()
+        self._proxy_tunnel = proxy_tunnel or self._default_proxy_tunnel
 
     async def __call__(self, request: web.Request):
-        if self._context is None:
+        if self.context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
-        ws_client = web.WebSocketResponse()
-        ws_target = await self._context.session.ws_connect(
-            self._context.url, timeout=self._default_timeout, **self.connection_options
+        ctx = copy.copy(self.context)
+
+        ws_source = web.WebSocketResponse()
+        ws_target = await ctx.session.ws_connect(
+            ctx.url, timeout=self._default_timeout, **self.connection_options
         )
+        ctx.set_socket_pair(ws_source, ws_target)
 
-        # Add sockets to active set
-        socket_pair = (ws_client, ws_target)
-        self._active_sockets.add(socket_pair)
+        await ctx.ws_source.prepare(request)
 
-        # Prepare client
-        await ws_client.prepare(request)
+        await self._default_proxy_tunnel(ctx)
+
+        await ctx.terminate_sockets()
+
+        return ws_source
+
+    async def _default_proxy_tunnel(self, ctx: ProxyContext):
+        if not ctx.ws_target or not ctx.ws_source:
+            raise ValueError("Sockets must be set before tunneling can start")
 
         # Create and run message forwarding tasks
-        client_to_target = asyncio.create_task(
-            self._client_message_handler(ws_client, ws_target)
+        source_to_target = asyncio.create_task(
+            self._sock_to_sock(ctx.ws_source, ctx.ws_target)
         )
-        target_to_client = asyncio.create_task(
-            self._web_message_handler(ws_target, ws_client)
+        target_to_source = asyncio.create_task(
+            self._sock_to_sock(ctx.ws_target, ctx.ws_source)
         )
 
         # Wait for first task to complete
         _, pending = await asyncio.wait(
-            [client_to_target, target_to_client],
+            [source_to_target, target_to_source],
             return_when=asyncio.FIRST_COMPLETED,
         )
 
@@ -100,15 +94,6 @@ class WsProxyHandler(BaseHandler):
                 await task
             except asyncio.CancelledError:
                 pass
-
-        # Ensure both sockets are closed
-        # This can happen when the user provided message handlers don't close the sockets
-        await self._terminate_sockets(ws_client, ws_target)
-
-        # Remove the socket pair from the active set
-        self._active_sockets.remove(socket_pair)
-
-        return ws_client
 
     async def _sock_to_sock(self, ws_source: SocketResponse, ws_target: SocketResponse):
         """Forwards messages from source socket to target socket.
@@ -125,7 +110,7 @@ class WsProxyHandler(BaseHandler):
         try:
             # Forward messages from source to target
             await self._proxy_messages(ws_source, ws_target)
-        except (asyncio.CancelledError, asyncio.TimeoutError):
+        except asyncio.TimeoutError:
             # Connection might be broken, so we should close the target
             if not ws_target.closed:
                 await ws_target.close(code=1001, message=b"Server disconnected")
@@ -171,16 +156,3 @@ class WsProxyHandler(BaseHandler):
                 web.WSMsgType.ERROR,
             ):
                 break
-
-    async def close_active_sockets(self):
-        """Closes all active sockets"""
-        for ws_client, ws_target in self._active_sockets:
-            await self._terminate_sockets(ws_client, ws_target)
-
-    @staticmethod
-    async def _terminate_sockets(ws_source: SocketResponse, ws_target: SocketResponse):
-        """Closes both sockets"""
-        if not ws_source.closed:
-            await ws_source.close()
-        if not ws_target.closed:
-            await ws_target.close()

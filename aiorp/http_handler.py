@@ -1,4 +1,5 @@
 import asyncio
+import copy
 import json
 import logging
 from collections import defaultdict
@@ -88,29 +89,37 @@ class HTTPProxyHandler(BaseHandler):
             ValueError: If proxy context is not set.
             HTTPInternalServerError: If there's an error during request processing.
         """
-        if self._context is None:
+        if self.context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
+        # Make sure session is started in parent so we can preserve it between
+        # the copies of contexts
+        self.context.start_session()
+
+        # We need to copy context since we don't want race conditions
+        # with request or response setting
+        ctx = copy.copy(self.context)
+
         # Set the request to context
-        self._context._set_request(request)
+        ctx._set_request(request)
 
         if self._rewrite:
-            self._context.request.rewrite_path(
+            ctx.request.rewrite_path(
                 self._rewrite.rfrom,
                 self._rewrite.rto,
             )
 
         # Execute the middleware chain
-        await self._execute_middleware_chain()
+        await self._execute_middleware_chain(ctx)
 
         # Check if the web response was set and set it if it wasn't
-        if self._context.response._web is None:
-            await self._context.response.set_response(response_type=ResponseType.BASE)
+        if not ctx.response.web_response_set:
+            await ctx.response.set_response(response_type=ResponseType.BASE)
 
         # Return the response
-        return self._context.response.web
+        return ctx.response.web
 
-    async def _execute_middleware_chain(self):
+    async def _execute_middleware_chain(self, ctx: ProxyContext):
         """Execute the entire provided middleware chain.
 
         The chain is executed in order the middlewares were registered,
@@ -120,21 +129,18 @@ class HTTPProxyHandler(BaseHandler):
         Raises:
             ValueError: If context is not set before execution.
         """
-        if not self._context:
-            raise ValueError("Cannot execute handlers before setting context")
-
         sorted_middlewares = sorted(self._middlewares.keys())
         middleware_generators = defaultdict(list)
 
         # Start all middleware generators and store them
         for order_key in sorted_middlewares:
             middleware_funcs = self._middlewares[order_key]
-            generators = [aiter(func(self._context)) for func in middleware_funcs]
+            generators = [aiter(func(ctx)) for func in middleware_funcs]
             await asyncio.gather(*[anext(gen, None) for gen in generators])
             middleware_generators[order_key] = generators
 
         # Execute the actual request
-        await self._proxy_middleware(self._context)
+        await self._proxy_middleware(ctx)
 
         # Resume all middleware generators in reverse order
         for order_key in reversed(sorted_middlewares):
@@ -142,7 +148,7 @@ class HTTPProxyHandler(BaseHandler):
                 *[anext(gen, None) for gen in middleware_generators[order_key]]
             )
 
-    async def _proxy_middleware(self, context: ProxyContext):
+    async def _proxy_middleware(self, ctx: ProxyContext):
         """The default final middleware in the middleware chain.
 
         It executes after all other user provided middlewares, and
@@ -154,21 +160,21 @@ class HTTPProxyHandler(BaseHandler):
         Raises:
             ValueError: If proxy request is not set.
         """
-        if context.request is None:
+        if ctx.request is None:
             raise ValueError("ProxyRequest not set")
         # Execute the request and check the response
-        await context.request.load_content()
-        resp = await context.session.request(
-            url=context.request.url,
-            method=context.request.method,
-            params=context.request.params,
-            headers=context.request.headers,
-            data=context.request.content,
+        await ctx.request.load_content()
+        resp = await ctx.session.request(
+            url=ctx.request.url,
+            method=ctx.request.method,
+            params=ctx.request.params,
+            headers=ctx.request.headers,
+            data=ctx.request.content,
             **self.connection_options,
         )
         self._raise_for_status(resp)
         # Build the proxy response object from the target response
-        context._set_response(resp)
+        ctx._set_response(resp)
 
     def _raise_for_status(self, response: client.ClientResponse):
         """Check status of request and handle the error properly.
@@ -198,12 +204,9 @@ class HTTPProxyHandler(BaseHandler):
                 ),
             )
 
-    def middleware(
-        self, order: int = MiddlewarePhase.STANDARD
-    ) -> Callable[
-        [Callable[[ProxyContext], AsyncGenerator[None, Any]]],
-        Callable[[ProxyContext], AsyncGenerator[None, Any]],
-    ]:
+    def add_middleware(
+        self, order: int, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
+    ):
         """Register a middleware with explicit ordering.
 
         It will be registered depending on the order and relative to
@@ -212,16 +215,26 @@ class HTTPProxyHandler(BaseHandler):
 
         Args:
             order: Integer representing order of middleware registration.
+            func: The middleware function
+        """
+        self._middlewares[order].append(func)
+
+    def default(
+        self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
+    ) -> Callable[[ProxyContext], AsyncGenerator[None, Any]]:
+        """Register a middleware with default execution order that can yield.
+
+        Executes the pre-yield code before late, but after early middleware,
+        and the post-yield code after late but before early middleware.
+
+        Args:
+            func: The middleware function which yields.
 
         Returns:
-            A decorator function that registers the middleware.
+            The decorated middleware function.
         """
-
-        def decorator(func: Callable[[ProxyContext], AsyncGenerator[None, Any]]):
-            self._middlewares[order].append(func)
-            return func
-
-        return decorator
+        self.add_middleware(MiddlewarePhase.STANDARD, func)
+        return func
 
     def early(
         self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
@@ -237,7 +250,8 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        return self.middleware(MiddlewarePhase.EARLY)(func)
+        self.add_middleware(MiddlewarePhase.EARLY, func)
+        return func
 
     def late(
         self, func: Callable[[ProxyContext], AsyncGenerator[None]]
@@ -254,4 +268,5 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        return self.middleware(MiddlewarePhase.LATE)(func)
+        self.add_middleware(MiddlewarePhase.LATE, func)
+        return func

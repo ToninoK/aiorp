@@ -8,7 +8,7 @@ from aiohttp.web_exceptions import HTTPUnauthorized
 
 from aiorp.base_handler import Rewrite
 from aiorp.context import ProxyContext
-from aiorp.http_handler import HttpProxyHandler
+from aiorp.http_handler import HTTPProxyHandler
 from aiorp.response import ResponseType
 
 pytestmark = [
@@ -53,12 +53,12 @@ def test_handler_init_invalid_conn_opts():
         "url": "http://smth.com/test",
     }
     with pytest.raises(ValueError):
-        HttpProxyHandler(connection_options=connection_options)
+        HTTPProxyHandler(connection_options=connection_options)
 
 
 @pytest.mark.asyncio
 async def test_handler_call_no_ctx():
-    handler = HttpProxyHandler()
+    handler = HTTPProxyHandler()
     req = make_mocked_request(method="GET", path="/test")
     with pytest.raises(ValueError):
         await handler(req)
@@ -66,7 +66,7 @@ async def test_handler_call_no_ctx():
 
 @pytest.mark.asyncio
 async def test_handler_call(simple_context):
-    handler = HttpProxyHandler(context=simple_context)
+    handler = HTTPProxyHandler(context=simple_context)
     req = make_mocked_request(method="GET", path="/yell_path")
     resp = await handler(req)
 
@@ -76,28 +76,27 @@ async def test_handler_call(simple_context):
 @pytest.mark.asyncio
 async def test_handler_rewrite_call(simple_context):
     rewrite = Rewrite(rfrom="/simple", rto="/yell_path")
-    handler = HttpProxyHandler(context=simple_context, rewrite=rewrite)
+    handler = HTTPProxyHandler(context=simple_context, rewrite=rewrite)
     req = make_mocked_request(method="GET", path="/simple")
     resp = await handler(req)
 
     assert resp.text == "/yell_path!!!"
 
 
-@pytest.mark.asyncio
+@pytest.mark.current
 async def test_handler_middleware_called(simple_context):
-    handler = HttpProxyHandler(context=simple_context)
+    handler = HTTPProxyHandler(context=simple_context)
     middleware = MagicMock()
-    handler.middleware()(middleware)
+    handler.default(middleware)
     req = make_mocked_request(method="GET", path="/yell_path")
     await handler(req)
-
     middleware.assert_called()
 
 
 @unittest.mock.patch("builtins.print")
 @pytest.mark.asyncio
 async def test_handler_call_order(mock_print, simple_context):
-    handler = HttpProxyHandler(context=simple_context)
+    handler = HTTPProxyHandler(context=simple_context)
     middleware_early = get_sample_middleware(0)
     middleware_late = get_sample_middleware(1000)
 
@@ -120,22 +119,19 @@ async def test_handler_call_order(mock_print, simple_context):
 
 @pytest.mark.asyncio
 async def test_handler_manipulates_ctx(simple_context):
-    handler = HttpProxyHandler(context=simple_context)
-    handler.middleware()(ctx_modifying_middleware)
+    handler = HTTPProxyHandler(context=simple_context)
+    handler.default(ctx_modifying_middleware)
 
     req = make_mocked_request(method="GET", path="/yell_path")
     resp = await handler(req)
 
-    assert "X-Added-Header" in simple_context.request.headers
-    assert "added_param" in simple_context.request.params
-    assert "X-Added-Response-Header" in simple_context.response.web.headers
     assert "X-Added-Response-Header" in resp.headers
 
 
 @pytest.mark.asyncio
 async def test_handler_raises_err(simple_context):
-    handler = HttpProxyHandler(context=simple_context)
-    handler.middleware()(error_raising_middleware)
+    handler = HTTPProxyHandler(context=simple_context)
+    handler.default(error_raising_middleware)
 
     req = make_mocked_request(method="GET", path="/yell_path")
     with pytest.raises(HTTPUnauthorized):
