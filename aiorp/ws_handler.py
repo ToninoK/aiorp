@@ -59,7 +59,7 @@ class WsProxyHandler(BaseHandler):
         ws_target = await ctx.session.ws_connect(
             ctx.url, timeout=self._default_timeout, **self.connection_options
         )
-        ctx.set_socket_pair(ws_source, ws_target)
+        ctx.set_socket_pair(ws_source=ws_source, ws_target=ws_target)
 
         await ctx.ws_source.prepare(request)
 

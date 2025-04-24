@@ -1,34 +1,24 @@
-# publish.yml
-
-name: "Build and publish to PyPI"
+# .github/workflows/ci-cd.yml
+name: PyPI Publish
 
 on:
-  release:
-    types:
-      - published
+  push:
+    branches:
+      - "release/*"
+      - "unstable/*"
 
 jobs:
-  run:
-    name: "Build and publish release"
+  pypi-publish:
+    name: Upload release to PyPI
+
     runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/<your-pypi-project-name>
     permissions:
-      id-token: write
-      contents: read
-
+      id-token: write # IMPORTANT: this permission is mandatory for trusted publishing
     steps:
-      - uses: actions/checkout@v4
+      # retrieve your distributions here
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v3
-        with:
-          enable-cache: true
-          cache-dependency-glob: uv.lock
-
-      - name: Set up Python
-        run: uv python install 3.13
-
-      - name: Build
-        run: uv build
-
-      - name: Publish
-        run: uv publish
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

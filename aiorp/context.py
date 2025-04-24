@@ -131,7 +131,7 @@ class ProxyContext:
         self._response = ProxyResponse(in_resp=response)
 
     @property
-    def session(self) -> ClientSession:
+    def session(self) -> ClientSession | None:
         """Get the session object, creating it if necessary.
 
         Returns:

@@ -14,5 +14,11 @@ but also offering a simple interface to create a reverse-proxy with complex func
   - [ ] Integration testing
 - [ ] Improve and refactor WS proxy
 - [ ] Set up documentation
-- [ ] Prepare quickstart guide and examples
+  - [x] Auto API Reference
+  - [ ] Write docs
+  - [ ] Prepare quickstart guide and examples
 - [ ] Prepare github actions (tests, multiple builds, publishing)
+  - [ ] Docs build and deploy
+  - [ ] Run tests
+  - [ ] Build app (multiple wheels)
+  - [ ] Publish app
