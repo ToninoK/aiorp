@@ -73,13 +73,14 @@ filterwarnings = [
   "ignore:Bare functions are deprecated, use async ones:DeprecationWarning",
 ]
 markers = [
-  "context: mark test as context",
   "current: mark test as current",
-  "integration: mark test as integration",
-  "request: mark test as request",
-  "response: mark test as response",
-  "unit: mark test as unit",
-  "http_handler: mark test as http handler",
+  "context: mark test as context related",
+  "integration: mark test as integration related",
+  "request: mark test as request related",
+  "response: mark test as response related",
+  "unit: mark test as unit test",
+  "http_handler: mark test as http handler related",
+  "websocket_handler: mark test as websocket handler related",
 ]
 
 [tool.pyright]

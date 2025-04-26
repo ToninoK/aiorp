@@ -111,7 +111,7 @@ class ProxyContext:
             raise ValueError("Request is not yet set")
         return self._request
 
-    def _set_request(self, request: web.Request):
+    def set_request(self, request: web.Request):
         """Set the current proxy request.
 
         Args:
@@ -122,7 +122,7 @@ class ProxyContext:
             in_req=request,
         )
 
-    def _set_response(self, response: client.ClientResponse):
+    def set_response(self, response: client.ClientResponse):
         """Set the current proxy response.
 
         Args:
@@ -131,7 +131,7 @@ class ProxyContext:
         self._response = ProxyResponse(in_resp=response)
 
     @property
-    def session(self) -> ClientSession | None:
+    def session(self) -> ClientSession:
         """Get the session object, creating it if necessary.
 
         Returns:

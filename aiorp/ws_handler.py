@@ -2,7 +2,8 @@ import asyncio
 import copy
 from typing import Awaitable, Callable, Union
 
-from aiohttp import client, web
+from aiohttp import WSCloseCode, client, web
+from aiohttp.client_exceptions import ClientConnectorSSLError
 
 from aiorp.base_handler import BaseHandler
 from aiorp.context import ProxyContext
@@ -24,6 +25,7 @@ class WsProxyHandler(BaseHandler):
         self,
         *args,
         proxy_tunnel: Callable[[ProxyContext], Awaitable] | None = None,
+        receive_timeout: int = 30,
         **kwargs,
     ):
         """Initialize the WebSocket proxy handler.
@@ -41,36 +43,72 @@ class WsProxyHandler(BaseHandler):
         """
         super().__init__(*args, **kwargs)
 
-        if self.connection_options is not None and "url" in self.connection_options:
+        if self.request_options is not None and "url" in self.request_options:
             raise ValueError(
                 "The connection options cannot contain the 'url', set it through context instead"
             )
 
-        self._default_timeout = client.ClientWSTimeout(ws_receive=30)
+        self._default_timeout = client.ClientWSTimeout(ws_receive=receive_timeout)
         self._proxy_tunnel = proxy_tunnel or self._default_proxy_tunnel
 
     async def __call__(self, request: web.Request):
+        """The handler that should be set on an endpoint
+
+        The handler:
+          - opies the context, updates the path if needed, prepares the source socket,
+        sets up
+        """
+        # Make sure the context is set up
         if self.context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
+        # Copy the context so it is separate per request
         ctx = copy.copy(self.context)
+        ctx.set_request(request)
 
+        # Rewrite path if specified
+        if self._rewrite:
+            ctx.request.rewrite_path(
+                self._rewrite.rfrom,
+                self._rewrite.rto,
+            )
+        # Prepare the source websocket
         ws_source = web.WebSocketResponse()
-        ws_target = await ctx.session.ws_connect(
-            ctx.url, timeout=self._default_timeout, **self.connection_options
-        )
+        await ws_source.prepare(ctx.request.in_req)
+
+        try:
+            # Attempt to connect with wss
+            ctx.request.url = ctx.request.url.with_scheme("wss")
+            ws_target = await ctx.session.ws_connect(
+                ctx.request.url, timeout=self._default_timeout, **self.request_options
+            )
+        except ClientConnectorSSLError:
+            # Fallback to ws
+            ctx.request.url = ctx.request.url.with_scheme("ws")
+            ws_target = await ctx.session.ws_connect(
+                ctx.request.url, timeout=self._default_timeout, **self.request_options
+            )
+        # Set the socket pair in the context
         ctx.set_socket_pair(ws_source=ws_source, ws_target=ws_target)
 
-        await ctx.ws_source.prepare(request)
+        # Use the default proxy tunnel
+        await self._proxy_tunnel(ctx)
 
-        await self._default_proxy_tunnel(ctx)
-
+        # Terminate the sockets
         await ctx.terminate_sockets()
 
         return ws_source
 
     async def _default_proxy_tunnel(self, ctx: ProxyContext):
-        if not ctx.ws_target or not ctx.ws_source:
+        """The default logic for forwarding messages between two sockets
+
+        Args:
+            ctx: The ProxyContext accessible for handling the tunneling
+        Raises:
+            ValueError: When the tunneling starts before sockets are set (very unlikely)
+        """
+
+        if ctx.ws_target is None or ctx.ws_source is None:
             raise ValueError("Sockets must be set before tunneling can start")
 
         # Create and run message forwarding tasks
@@ -110,14 +148,21 @@ class WsProxyHandler(BaseHandler):
         try:
             # Forward messages from source to target
             await self._proxy_messages(ws_source, ws_target)
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
+            print(e)
             # Connection might be broken, so we should close the target
             if not ws_target.closed:
-                await ws_target.close(code=1001, message=b"Server disconnected")
+                await ws_target.close(
+                    code=WSCloseCode.GOING_AWAY,
+                    message=b"Other socket timed out, going away.",
+                )
         except Exception as e:
+            print(e)
             # For unexpected exceptions, close the target socket
             if not ws_target.closed:
-                await ws_target.close(code=1011, message=str(e).encode())
+                await ws_target.close(
+                    code=WSCloseCode.INTERNAL_ERROR, message=str(e).encode()
+                )
             raise
         finally:
             # Make sure the source socket is closed
@@ -143,16 +188,15 @@ class WsProxyHandler(BaseHandler):
                 await ws_target.ping()
             elif msg.type == web.WSMsgType.PONG:
                 await ws_target.pong()
-            elif msg.type == web.WSMsgType.CLOSE:
-                if not ws_target.closed:
-                    await ws_target.close(
-                        code=msg.data.code,
-                        message=msg.data.message if msg.data else b"",
-                    )
-                break
             elif msg.type in (
+                web.WSMsgType.CLOSE,
                 web.WSMsgType.CLOSING,
                 web.WSMsgType.CLOSED,
                 web.WSMsgType.ERROR,
             ):
+                if not ws_target.closed:
+                    await ws_target.close(
+                        code=WSCloseCode.GOING_AWAY,
+                        message=b"Other socket will not communicate any further, going away.",
+                    )
                 break

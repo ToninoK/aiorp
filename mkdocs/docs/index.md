@@ -1,7 +1,7 @@
 # aiorp
 
 Welcome to the documentation of the `aiorp` package, a simple reverse proxy package built on top of
-the `aiohttp` builtin package.
+the `aiohttp` package.
 
 ## Index
 

@@ -42,16 +42,17 @@ async def test_context_set_request():
     with pytest.raises(ValueError):
         context.request  # pylint: disable=pointless-statement
 
-    context._set_request(mock_request)
+    context.set_request(mock_request)
     assert context.request is not None
 
 
-async def test_context_set_response(http_client):
+async def test_context_set_response():
     context = ProxyContext(url=URL("http://test.com"))
     with pytest.raises(ValueError):
         context.response  # pylint: disable=pointless-statement
 
     with aioresponses() as mocked:
-        mocked.add("http://test.com/test")
-        resp = await http_client.get("http://test.com/test")
-        context._set_response(resp)
+        async with aiohttp.ClientSession() as session:
+            mocked.add("http://test.com/test")
+            resp = await session.get("http://test.com/test")
+            context.set_response(resp)

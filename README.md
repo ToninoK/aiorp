@@ -18,7 +18,7 @@ but also offering a simple interface to create a reverse-proxy with complex func
   - [ ] Write docs
   - [ ] Prepare quickstart guide and examples
 - [ ] Prepare github actions (tests, multiple builds, publishing)
-  - [ ] Docs build and deploy
-  - [ ] Run tests
+  - [x] Docs build and deploy
+  - [x] Run tests
+  - [x] Publish app
   - [ ] Build app (multiple wheels)
-  - [ ] Publish app

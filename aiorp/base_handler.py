@@ -42,24 +42,18 @@ class BaseHandler:
     Args:
         context: Optional proxy context containing target URL and session information.
         rewrite: Optional rewrite configuration for modifying request paths.
-        connection_options: Optional dictionary of additional connection options.
+        request_options: Optional dictionary of additional request options to be injected on
+            request. Refer to the `ClientSession.request` function arguments for the exact options
     """
 
     def __init__(
         self,
         context: ProxyContext | None = None,
         rewrite: Rewrite | None = None,
-        connection_options: dict | None = None,
+        request_options: dict | None = None,
     ):
-        """Initialize the base handler.
-
-        Args:
-            context: Optional proxy context containing target URL and session information.
-            rewrite: Optional rewrite configuration for modifying request paths.
-            connection_options: Optional dictionary of additional connection options.
-        """
         self._rewrite = rewrite
-        self.connection_options = connection_options or {}
+        self.request_options = request_options or {}
         self.context: ProxyContext | None = context
 
     async def __call__(self, request: web.Request):

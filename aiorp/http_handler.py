@@ -55,8 +55,8 @@ class HTTPProxyHandler(BaseHandler):
             ValueError: If connection options contain invalid keys.
         """
         super().__init__(*args, **kwargs)
-        if self.connection_options is not None and any(
-            key in self.connection_options
+        if self.request_options is not None and any(
+            key in self.request_options
             for key in [
                 "method",
                 "url",
@@ -92,8 +92,6 @@ class HTTPProxyHandler(BaseHandler):
         if self.context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
 
-        # Make sure session is started in parent so we can preserve it between
-        # the copies of contexts
         self.context.start_session()
 
         # We need to copy context since we don't want race conditions
@@ -101,7 +99,7 @@ class HTTPProxyHandler(BaseHandler):
         ctx = copy.copy(self.context)
 
         # Set the request to context
-        ctx._set_request(request)
+        ctx.set_request(request)
 
         if self._rewrite:
             ctx.request.rewrite_path(
@@ -170,11 +168,11 @@ class HTTPProxyHandler(BaseHandler):
             params=ctx.request.params,
             headers=ctx.request.headers,
             data=ctx.request.content,
-            **self.connection_options,
+            **self.request_options,
         )
         self._raise_for_status(resp)
         # Build the proxy response object from the target response
-        ctx._set_response(resp)
+        ctx.set_response(resp)
 
     def _raise_for_status(self, response: client.ClientResponse):
         """Check status of request and handle the error properly.
