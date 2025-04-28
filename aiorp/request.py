@@ -1,21 +1,20 @@
 from typing import Any
 
-from aiohttp import client, web
-from multidict import CIMultiDict, MultiMapping
+from aiohttp import web
+from multidict import CIMultiDict
 from yarl import URL
 
 
 class ProxyRequest:
-    """Proxy request object
+    """Proxy request object.
 
     This object encapsulates the incoming request and represents the request that will be sent
     to the target server. It exposes properties and methods to manipulate the request before
     it is executed.
 
-    :param url: The target server URL
-    :param in_req: The incoming request object
-    :param proxy_attributes: Additional attributes to store in the request object
-        This is where the proxy context will be stored and accessible.
+    Args:
+        url: The target server URL.
+        in_req: The incoming request object.
     """
 
     HOP_BY_HOP_HEADERS = [
@@ -38,7 +37,7 @@ class ProxyRequest:
         self.url: URL = url
         self.headers: CIMultiDict[str] = CIMultiDict(in_req.headers)
         self.method: str = in_req.method
-        self.params: MultiMapping[str] = in_req.query
+        self.params: dict = dict(in_req.query)
         self.content: bytes | Any = None
 
         # Update path to match the incoming request
@@ -58,37 +57,16 @@ class ProxyRequest:
         # Set the X-Forwarded-For header
         self.set_x_forwarded_for()
 
-    async def execute(
-        self,
-        session: client.ClientSession,
-        **kwargs,
-    ):
-        """Execute the request using the provided session object
-
-        Additionally, apply any optional keyword arguments to the request.
-
-        :param session: The session object to use for the request
-        :param kwargs: Optional keyword arguments to apply when executing the request
-        """
-        await self.load_content()
-        return await session.request(
-            method=self.in_req.method,
-            url=self.url,
-            headers=self.headers,
-            params=self.params,
-            data=self.content,
-            **kwargs,
-        )
-
     def set_x_forwarded_for(self, clean: bool = False):
-        """Set the X-Forwarded related headers
+        """Set the X-Forwarded related headers.
 
         By default, appends the current remote address to the existing X-Forwarded-For
         header if one exists, and sets the X-Forwarded-Host header to the incoming host.
         If clean is set to True, the existing X-Forwarded-For header will be ignored and
         only the current remote address will be set.
 
-        :param clean: If True, ignore the existing X-Forwarded-For header
+        Args:
+            clean: If True, ignore the existing X-Forwarded-For header.
         """
         self.headers["X-Forwarded-Host"] = self.in_req.host
         if self.in_req.headers.get("X-Forwarded-For") and not clean:
@@ -99,14 +77,6 @@ class ProxyRequest:
             self.headers["X-Forwarded-For"] = self.in_req.remote
 
     async def load_content(self):
-        """Load the content of the incoming request if it can be read"""
+        """Load the content of the incoming request if it can be read."""
         if self.method in ["POST", "PUT", "PATCH"] and self.in_req.can_read_body:
             self.content = await self.in_req.read()
-
-    def rewrite_path(self, current, new):
-        """Rewrite the path of the request URL from current to new value
-
-        :param current: The current path value to replace
-        :param new: The new path value to replace with
-        """
-        self.url = self.url.with_path(self.url.path.replace(current, new))

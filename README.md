@@ -6,13 +6,19 @@ but also offering a simple interface to create a reverse-proxy with complex func
 ## TODO
 
 - [ ] Tests
-  - [ ] Response unit tests
-  - [ ] Request unit tests
-  - [ ] HTTP Proxy handler unit tests
-  - [ ] WS Proxy handler unit tests
-  - [ ] Setup test target server(s)
+  - [x] Response unit tests
+  - [x] Request unit tests
+  - [x] Context unit tests
+  - [x] HTTP Proxy handler unit tests
+  - [x] WS Proxy handler unit tests
   - [ ] Integration testing
 - [ ] Improve and refactor WS proxy
 - [ ] Set up documentation
-- [ ] Prepare quickstart guide and examples
+  - [x] Auto API Reference
+  - [ ] Write docs
+  - [ ] Prepare quickstart guide and examples
 - [ ] Prepare github actions (tests, multiple builds, publishing)
+  - [ ] Docs build and deploy
+  - [x] Run tests
+  - [ ] Publish app
+  - [ ] Build app (multiple wheels)

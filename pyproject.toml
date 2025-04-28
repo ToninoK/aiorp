@@ -13,6 +13,9 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
   "aioresponses>=0.7.8",
+  "mkdocs>=1.6.1",
+  "mkdocs-material>=9.6.12",
+  "mkdocstrings-python>=1.16.10",
   "pre-commit>=4.1.0",
   "pytest>=8.3.5",
   "pytest-aiohttp>=1.1.0",
@@ -49,6 +52,7 @@ disable = [
   "logging-fstring-interpolation",
   "too-few-public-methods",
   "protected-access",
+  "redefined-outer-name",
 ]
 
 [tool.pylint.reports]
@@ -69,11 +73,15 @@ filterwarnings = [
   "ignore:Bare functions are deprecated, use async ones:DeprecationWarning",
 ]
 markers = [
-  "request: mark test as request",
-  "response: mark test as response",
-  "unit: mark test as unit",
-  "integration: mark test as integration",
   "current: mark test as current",
+  "context: mark test as context related",
+  "integration: mark test as integration related",
+  "request: mark test as request related",
+  "response: mark test as response related",
+  "unit: mark test as unit test",
+  "rewrite: mark test as rewrite related",
+  "http_handler: mark test as http handler related",
+  "websocket_handler: mark test as websocket handler related",
 ]
 
 [tool.pyright]

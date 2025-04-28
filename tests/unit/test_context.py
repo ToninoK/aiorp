@@ -1,9 +1,14 @@
 import aiohttp
 import pytest
 from aiohttp.test_utils import make_mocked_request
+from aioresponses import aioresponses
 from yarl import URL
 
 from aiorp.context import ProxyContext
+
+pytestmark = [
+    pytest.mark.context,
+]
 
 
 async def test_session_factory():
@@ -37,7 +42,7 @@ async def test_context_set_request():
     with pytest.raises(ValueError):
         context.request  # pylint: disable=pointless-statement
 
-    context._set_request(mock_request)
+    context.set_request(mock_request)
     assert context.request is not None
 
 
@@ -46,4 +51,8 @@ async def test_context_set_response():
     with pytest.raises(ValueError):
         context.response  # pylint: disable=pointless-statement
 
-    # set response and assert that it is not None
+    with aioresponses() as mocked:
+        async with aiohttp.ClientSession() as session:
+            mocked.add("http://test.com/test")
+            resp = await session.get("http://test.com/test")
+            context.set_response(resp)

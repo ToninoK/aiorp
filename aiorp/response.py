@@ -1,62 +1,98 @@
 from enum import Enum
 
 from aiohttp import client, web
+from aiohttp.web import Response, StreamResponse
 
 
 class ResponseType(Enum):
-    """Response type enumeration"""
+    """Response type enumeration."""
 
     STREAM = "STREAM"
     BASE = "BASE"
 
 
 class ProxyResponse:
-    """Proxy response object
+    """Proxy response object.
 
     This object encapsulates the incoming request and the response from target server.
     It exposes a method to set the response object which can then be modified before being
     returned to the client.
 
-    :param in_req: The incoming request object
-    :param in_resp: The incoming response object
-    :param proxy_attributes: Additional attributes to store in the response object
-        This is where the proxy context will be stored and accessible.
+    Args:
+        in_resp: The incoming response object.
     """
 
     def __init__(
         self,
         in_resp: client.ClientResponse,
     ):
+        """Initialize the proxy response object.
+
+        Args:
+            in_resp: The incoming response object.
+        """
         self.in_resp: client.ClientResponse = in_resp
         self._web: web.StreamResponse | None = None
         self._content: bytes | None = None
 
     @property
+    def web_response_set(self) -> bool:
+        """Checks if the web response is set already.
+
+        Returns:
+            A boolean, true if set, false otherwise
+        """
+        return self._web is not None
+
+    @property
     def web(
         self,
-    ) -> web.StreamResponse | web.Response:
+    ) -> StreamResponse | Response:
+        """Access the web response.
+
+        Returns:
+            A response, either StreamResponse or Response.
+
+        Raises:
+            ValueError: When response is not set yet.
+        """
         if self._web is None:
             raise ValueError("Response has not been set")
         return self._web
 
-    async def set_response(self, response_type: ResponseType):
+    async def set_response(
+        self, response_type: ResponseType = ResponseType.BASE
+    ) -> StreamResponse | Response:
+        """Set the response using the given response type.
+
+        Args:
+            response_type: The type of response to set.
+
+        Returns:
+            The set web response.
+
+        Raises:
+            ValueError: When attempted to set the response a second time.
+        """
         if self._web is not None:
             raise ValueError("Response can only be set once")
-        if response_type == ResponseType.BASE:
-            await self._set_base_response()
-        elif response_type == ResponseType.STREAM:
-            await self._set_stream_response()
+        if response_type == ResponseType.STREAM:
+            self._web = await self._get_stream_response()
+        else:
+            self._web = await self._get_base_response()
         return self._web
 
-    async def _set_stream_response(self):
-        stream_resp = web.StreamResponse(
+    async def _get_stream_response(self) -> StreamResponse:
+        """Convert incoming response to stream response."""
+        stream_resp = StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
         )
-        self._web = stream_resp
+        return stream_resp
 
-    async def _set_base_response(self):
+    async def _get_base_response(self) -> Response:
+        """Convert incoming response to base response."""
         text = await self.in_resp.text()
         # Don't set content_type and charset if it's already in headers
         # This avoids duplicate/conflicting settings
@@ -67,7 +103,7 @@ class ProxyResponse:
             content_type = self.in_resp.content_type
             charset = self.in_resp.charset
 
-        resp = web.Response(
+        resp = Response(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
             headers=self.in_resp.headers,
@@ -76,4 +112,4 @@ class ProxyResponse:
             # We load just text, web.Response takes care of encoding if needed
             text=text,
         )
-        self._web = resp
+        return resp

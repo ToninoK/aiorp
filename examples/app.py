@@ -4,14 +4,14 @@ from aiohttp import web
 from yarl import URL
 
 from aiorp.context import ProxyContext
-from aiorp.http_handler import HttpProxyHandler
+from aiorp.http_handler import HTTPProxyHandler
 from aiorp.response import ResponseType
 
 pokeapi_context = ProxyContext(
     url=URL("https://pokeapi.co"), state={"target": "pokeapi"}
 )
 
-handler = HttpProxyHandler(
+handler = HTTPProxyHandler(
     pokeapi_context,
     rewrite_from="/pokapi",
     rewrite_to="/api/v2",
@@ -30,7 +30,7 @@ async def proxy_middleware1(context: ProxyContext):
     log.info(context.response.web.status)
 
 
-@handler.middleware()
+@handler.default
 async def proxy_middleware2(context: ProxyContext):
     # Do request processing here
     log.info("Standard middleware: Starting pre-processing")
