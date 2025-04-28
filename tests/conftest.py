@@ -1,51 +1,50 @@
 import pytest
 import yarl
-from aiohttp import WSMsgType, web
+from aiohttp import web
 
 from aiorp.context import ProxyContext
-
-
-async def ping(request: web.Request) -> web.Response:
-    return web.Response(text="pong")
-
-
-async def yell_path(request: web.Request) -> web.Response:
-    return web.Response(text=f"{request.path}!!!")
-
-
-async def ws_handler(request: web.Request) -> web.WebSocketResponse:
-    ws = web.WebSocketResponse()
-    await ws.prepare(request)
-
-    async for msg in ws:
-        if msg.type == WSMsgType.TEXT:
-            if msg.data == "close":
-                await ws.close()
-                break
-            if msg.data == "error":
-                raise Exception("Target error")
-            await ws.send_str(f"received: {msg.data}")
-        elif msg.type == WSMsgType.BINARY:
-            await ws.send_bytes(f"received: {msg.data}".encode())
-        elif msg.type == WSMsgType.PING:
-            await ws.pong()
-        elif msg.type == WSMsgType.ERROR:
-            if exc := ws.exception():
-                raise exc
-    return ws
+from aiorp.http_handler import HTTPProxyHandler
+from aiorp.ws_handler import WsProxyHandler
+from tests.utils.target import app as target_app
+from tests.utils.ws_target import app as ws_target_app
 
 
 @pytest.fixture
 async def target_ctx(aiohttp_server):
-    app = web.Application()
-    app.router.add_get("/", ping)
-    app.router.add_get("/yell_path", yell_path)
-    app.router.add_get("/ws", ws_handler)
-    server = await aiohttp_server(app)
-
+    server = await aiohttp_server(target_app())
     url = yarl.URL(f"http://localhost:{server.port}")
     context = ProxyContext(url=url)
-
     yield context
 
     await context.close_session()
+
+
+@pytest.fixture
+async def ws_target_ctx(aiohttp_server):
+    server = await aiohttp_server(ws_target_app())
+    url = yarl.URL(f"http://localhost:{server.port}")
+    context = ProxyContext(url=url)
+    yield context
+
+    await context.close_session()
+
+
+@pytest.fixture
+def proxy_server(aiohttp_server, target_ctx, ws_target_ctx):
+    async def proxy_server_setup(**kwargs):
+        application = web.Application()
+
+        http_handler = HTTPProxyHandler(context=target_ctx, **kwargs)
+        ws_handler = WsProxyHandler(context=ws_target_ctx, **kwargs)
+
+        application.add_routes(
+            [
+                web.get("/http", http_handler),
+                web.post("/http", http_handler),
+                web.get("/ws", ws_handler),
+            ]
+        )
+
+        return await aiohttp_server(application)
+
+    return proxy_server_setup

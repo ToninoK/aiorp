@@ -12,8 +12,8 @@ def _proxy_app(**kwargs):
     app = web.Application()
     ctx = kwargs.get("context")
     ws_handler = WsProxyHandler(**kwargs)
-    app.router.add_get("/ws", ws_handler)
-    app.router.add_get("/sw/ws", ws_handler)
+    app.router.add_get("/", ws_handler)
+    app.router.add_get("/sw", ws_handler)
 
     async def startup(_):
         ctx.start_session()
@@ -44,11 +44,11 @@ async def test_ws_handler_call_no_ctx():
 
 
 @pytest.mark.asyncio
-async def test_ws_handler_call(aiohttp_client, target_ctx):
-    app = _proxy_app(context=target_ctx)
+async def test_ws_handler_call(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
     client = await aiohttp_client(app)
 
-    async with client.ws_connect("/ws") as ws:
+    async with client.ws_connect("/") as ws:
         await ws.send_str("test")
         msg = await ws.receive()
         await ws.close()
@@ -58,11 +58,11 @@ async def test_ws_handler_call(aiohttp_client, target_ctx):
 
 
 @pytest.mark.asyncio
-async def test_ws_handler_call_with_rewrite(aiohttp_client, target_ctx):
-    app = _proxy_app(context=target_ctx, rewrite=Rewrite(rfrom="/sw", rto=""))
+async def test_ws_handler_call_with_rewrite(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx, rewrite=Rewrite(rfrom="/sw", rto=""))
     client = await aiohttp_client(app)
 
-    async with client.ws_connect("/sw/ws") as ws:
+    async with client.ws_connect("/sw") as ws:
         await ws.send_str("test")
         msg = await ws.receive()
         await ws.close()
@@ -72,11 +72,11 @@ async def test_ws_handler_call_with_rewrite(aiohttp_client, target_ctx):
 
 
 @pytest.mark.asyncio
-async def test_ws_handler_call_timeout(aiohttp_client, target_ctx):
-    app = _proxy_app(context=target_ctx, receive_timeout=0.1)
+async def test_ws_handler_call_timeout(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx, receive_timeout=0.1)
     client = await aiohttp_client(app)
 
-    async with client.ws_connect("/ws") as ws:
+    async with client.ws_connect("/") as ws:
         msg = await ws.receive()
         await ws.close()
 
@@ -85,11 +85,11 @@ async def test_ws_handler_call_timeout(aiohttp_client, target_ctx):
 
 
 @pytest.mark.asyncio
-async def test_ws_handler_target_closed(aiohttp_client, target_ctx):
-    app = _proxy_app(context=target_ctx)
+async def test_ws_handler_target_closed(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
     client = await aiohttp_client(app)
 
-    async with client.ws_connect("/ws") as ws:
+    async with client.ws_connect("/") as ws:
         await ws.send_str("close")
         msg = await ws.receive()
 
@@ -98,11 +98,11 @@ async def test_ws_handler_target_closed(aiohttp_client, target_ctx):
 
 
 @pytest.mark.asyncio
-async def test_ws_handler_target_error(aiohttp_client, target_ctx):
-    app = _proxy_app(context=target_ctx)
+async def test_ws_handler_target_error(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
     client = await aiohttp_client(app)
 
-    async with client.ws_connect("/ws") as ws:
+    async with client.ws_connect("/") as ws:
         await ws.send_str("error")
         msg = await ws.receive()
 
