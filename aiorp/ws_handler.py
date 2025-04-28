@@ -19,7 +19,20 @@ WebMessageHandler = Callable[
 
 
 class WsProxyHandler(BaseHandler):
-    """WebSocket handler."""
+    """WebSocket handler in charge of proxying socket messages
+
+    Initialize and proxy messages between source and target websockets.
+
+    Args:
+        *args: Variable length argument list.
+        message_handler: Optional handler for all message types.
+        client_message_handler: Optional handler for client messages.
+        web_message_handler: Optional handler for web messages.
+        **kwargs: Arbitrary keyword arguments.
+
+    Raises:
+        ValueError: If connection options contain 'url' or if both message_handler and
+    """
 
     def __init__(
         self,
@@ -28,19 +41,6 @@ class WsProxyHandler(BaseHandler):
         receive_timeout: int = 30,
         **kwargs,
     ):
-        """Initialize the WebSocket proxy handler.
-
-        Args:
-            *args: Variable length argument list.
-            message_handler: Optional handler for all message types.
-            client_message_handler: Optional handler for client messages.
-            web_message_handler: Optional handler for web messages.
-            **kwargs: Arbitrary keyword arguments.
-
-        Raises:
-            ValueError: If connection options contain 'url' or if both message_handler and
-                client/web_message_handlers are specified.
-        """
         super().__init__(*args, **kwargs)
 
         if self.request_options is not None and "url" in self.request_options:
@@ -54,9 +54,18 @@ class WsProxyHandler(BaseHandler):
     async def __call__(self, request: web.Request):
         """The handler that should be set on an endpoint
 
-        The handler:
-          - opies the context, updates the path if needed, prepares the source socket,
-        sets up
+        The handler copies the context and sets up both sockets. Then it spins up a task
+        that will tunnel the messages between the two sockets. Terminating both sockets
+        if any drop the connection.
+
+        Args:
+            request: The incoming web Request object.
+
+        Returns:
+            The WebSocketResponse
+
+        Raises:
+            ValueError: If context is not set
         """
         # Make sure the context is set up
         if self.context is None:
@@ -68,10 +77,8 @@ class WsProxyHandler(BaseHandler):
 
         # Rewrite path if specified
         if self._rewrite:
-            ctx.request.rewrite_path(
-                self._rewrite.rfrom,
-                self._rewrite.rto,
-            )
+            ctx.request.url = self._rewrite.execute(ctx.request.url)
+
         # Prepare the source websocket
         ws_source = web.WebSocketResponse()
         await ws_source.prepare(ctx.request.in_req)
@@ -149,7 +156,6 @@ class WsProxyHandler(BaseHandler):
             # Forward messages from source to target
             await self._proxy_messages(ws_source, ws_target)
         except asyncio.TimeoutError as e:
-            print(e)
             # Connection might be broken, so we should close the target
             if not ws_target.closed:
                 await ws_target.close(
@@ -157,7 +163,6 @@ class WsProxyHandler(BaseHandler):
                     message=b"Other socket timed out, going away.",
                 )
         except Exception as e:
-            print(e)
             # For unexpected exceptions, close the target socket
             if not ws_target.closed:
                 await ws_target.close(

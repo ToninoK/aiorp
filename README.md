@@ -10,7 +10,7 @@ but also offering a simple interface to create a reverse-proxy with complex func
   - [x] Request unit tests
   - [x] Context unit tests
   - [x] HTTP Proxy handler unit tests
-  - [ ] WS Proxy handler unit tests
+  - [x] WS Proxy handler unit tests
   - [ ] Integration testing
 - [ ] Improve and refactor WS proxy
 - [ ] Set up documentation
@@ -18,7 +18,7 @@ but also offering a simple interface to create a reverse-proxy with complex func
   - [ ] Write docs
   - [ ] Prepare quickstart guide and examples
 - [ ] Prepare github actions (tests, multiple builds, publishing)
-  - [x] Docs build and deploy
+  - [ ] Docs build and deploy
   - [x] Run tests
-  - [x] Publish app
+  - [ ] Publish app
   - [ ] Build app (multiple wheels)

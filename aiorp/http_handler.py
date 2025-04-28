@@ -102,10 +102,7 @@ class HTTPProxyHandler(BaseHandler):
         ctx.set_request(request)
 
         if self._rewrite:
-            ctx.request.rewrite_path(
-                self._rewrite.rfrom,
-                self._rewrite.rto,
-            )
+            ctx.request.url = self._rewrite.execute(ctx.request.url)
 
         # Execute the middleware chain
         await self._execute_middleware_chain(ctx)
@@ -123,6 +120,9 @@ class HTTPProxyHandler(BaseHandler):
         The chain is executed in order the middlewares were registered,
         with the pre-yield code executing in that order, and the post-yield
         executing in reverse order ("russian doll model").
+
+        Args:
+            ctx: The ProxyContext to share in each of the middlewares
 
         Raises:
             ValueError: If context is not set before execution.

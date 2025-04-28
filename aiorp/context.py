@@ -30,13 +30,6 @@ class ProxyContext:
         session_factory: SessionFactory | None = None,
         state: dict | None = None,
     ):
-        """Initialize the proxy context.
-
-        Args:
-            url: The target URL to proxy requests to.
-            session_factory: Optional factory function to create client sessions.
-            state: Optional state object to store additional context data.
-        """
         self.url: URL = url
         self.state: dict | None = state
         self.session_factory: SessionFactory = session_factory or ClientSession
@@ -60,7 +53,7 @@ class ProxyContext:
             state={**self.state} if self.state else None,
             session_factory=self.session_factory,
         )
-        # Set the session if it is already there
+        # Set the session in case it is already there
         ctx._session = self._session
         return ctx
 

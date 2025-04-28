@@ -149,17 +149,3 @@ async def test_content_should_not_be_loaded():
     assert proxy_request.content is None
     await proxy_request.load_content()
     assert proxy_request.content is None
-
-
-def test_rewrite_path():
-    """Test that the path is rewritten"""
-    mock_request = make_mocked_request("GET", "/old/path")
-    proxy_request = ProxyRequest(TARGET_URL, mock_request)
-    proxy_request.rewrite_path("/path", "/newpath")
-    assert proxy_request.url.path == "/old/newpath"
-
-    proxy_request.rewrite_path("/old/newpath", "/new/path")
-    assert proxy_request.url.path == "/new/path"
-
-    proxy_request.rewrite_path("new", "old")
-    assert proxy_request.url.path == "/old/path"

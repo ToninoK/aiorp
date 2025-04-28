@@ -33,12 +33,6 @@ class ProxyRequest:
         url: URL,
         in_req: web.Request,
     ):
-        """Initialize the proxy request object.
-
-        Args:
-            url: The target server URL.
-            in_req: The incoming request object.
-        """
         self.in_req: web.Request = in_req
         self.url: URL = url
         self.headers: CIMultiDict[str] = CIMultiDict(in_req.headers)
@@ -86,12 +80,3 @@ class ProxyRequest:
         """Load the content of the incoming request if it can be read."""
         if self.method in ["POST", "PUT", "PATCH"] and self.in_req.can_read_body:
             self.content = await self.in_req.read()
-
-    def rewrite_path(self, current: str, new: str):
-        """Rewrite the path of the request URL from current to new value.
-
-        Args:
-            current: The current path value to replace.
-            new: The new path value to replace with.
-        """
-        self.url = self.url.with_path(self.url.path.replace(current, new))

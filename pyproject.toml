@@ -79,6 +79,7 @@ markers = [
   "request: mark test as request related",
   "response: mark test as response related",
   "unit: mark test as unit test",
+  "rewrite: mark test as rewrite related",
   "http_handler: mark test as http handler related",
   "websocket_handler: mark test as websocket handler related",
 ]
