@@ -25,8 +25,6 @@ class Rewrite:
         Raises:
             ValueError: If only one of rfrom or rto is provided.
         """
-        if (rfrom and rto is None) or (rto and rfrom is None):
-            raise ValueError("Both rewrite_from and rewrite_to must be set, or neither")
         self.rfrom = rfrom
         self.rto = rto
 

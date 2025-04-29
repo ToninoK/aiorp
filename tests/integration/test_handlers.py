@@ -55,7 +55,6 @@ async def test_http_handler_proxy_error(aiohttp_client, proxy_server):
 
 @pytest.mark.http_handler
 @pytest.mark.asyncio
-@pytest.mark.current
 async def test_modify_request(aiohttp_client, proxy_server):
 
     http_rewrite = Rewrite("/http", "")

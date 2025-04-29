@@ -14,9 +14,7 @@ async def ws_handler(request: web.Request) -> web.WebSocketResponse:
                 raise Exception("Target error")
             await ws.send_str(f"received: {msg.data}")
         elif msg.type == WSMsgType.BINARY:
-            await ws.send_bytes(f"received: {msg.data}".encode())
-        elif msg.type == WSMsgType.PING:
-            await ws.pong()
+            await ws.send_bytes(b"received: " + msg.data)
         elif msg.type == WSMsgType.ERROR:
             if exc := ws.exception():
                 raise exc
