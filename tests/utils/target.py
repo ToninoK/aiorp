@@ -29,8 +29,16 @@ async def yell(request: web.Request):
 
 
 async def store_data(request: web.Request) -> web.Response:
-    data = await request.json()
-    return web.Response(body=data)
+    return web.Response(status=204)
+
+
+async def request_data(request: web.Request) -> web.Response:
+    data = {
+        "body": await request.json(),
+        "params": dict(request.query),
+        "headers": dict(request.headers),
+    }
+    return web.json_response(data)
 
 
 async def return_error(request: web.Request) -> web.Response:
@@ -49,6 +57,7 @@ def app():
             web.get("/", ping),
             web.get("/yell_path", yell),
             web.get("/dump/data", dump_data),
+            web.post("/request/data", request_data),
             web.post("/upload", store_data),
             web.get("/error", return_error),
             web.get("/error/internal", internal_error),
