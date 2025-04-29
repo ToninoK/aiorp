@@ -1,7 +1,7 @@
 import pytest
 from aiohttp.test_utils import TestClient
 
-from aiorp.http_handler import ProxyMiddlewareDef
+from aiorp.http_handler import MiddlewarePhase, ProxyMiddlewareDef
 from aiorp.rewrite import Rewrite
 from tests.utils.proxy_middlewares import modify_response
 
@@ -51,7 +51,11 @@ async def test_modify_response(aiohttp_client, proxy_server):
     server = await proxy_server(
         http={
             "rewrite": http_rewrite,
-            "middlewares": [ProxyMiddlewareDef(order=500, middleware=modify_response)],
+            "middlewares": [
+                ProxyMiddlewareDef(
+                    phase=MiddlewarePhase.STANDARD, middleware=modify_response
+                )
+            ],
         }
     )
     client: TestClient = await aiohttp_client(server.app)

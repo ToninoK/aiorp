@@ -30,9 +30,14 @@ class MiddlewarePhase(IntEnum):
 
 @dataclass
 class ProxyMiddlewareDef:
-    """A ProxyMiddleware definition used to simply set the middleware for a handler"""
+    """A ProxyMiddleware definition used to simply set the middleware for a handler
 
-    order: MiddlewarePhase
+    Args:
+        phase: The phase of the middleware
+        middleware: The middleware function
+    """
+
+    phase: MiddlewarePhase
     middleware: ProxyMiddleware
 
 
@@ -91,7 +96,7 @@ class HTTPProxyHandler(BaseHandler):
         self._middlewares = defaultdict(list)
 
         for item in middlewares or []:
-            self._middlewares[item.order].append(item.middleware)
+            self._middlewares[item.phase].append(item.middleware)
 
     async def __call__(self, request: web.Request) -> web.Response | web.StreamResponse:
         """Handle incoming requests.
@@ -221,7 +226,7 @@ class HTTPProxyHandler(BaseHandler):
                 ),
             )
 
-    def add_middleware(self, order: int, func: ProxyMiddleware):
+    def add_middleware(self, phase: int, func: ProxyMiddleware):
         """Register a middleware with explicit ordering.
 
         It will be registered depending on the order and relative to
@@ -229,10 +234,10 @@ class HTTPProxyHandler(BaseHandler):
         while a higher number results in a later registration.
 
         Args:
-            order: Integer representing order of middleware registration.
+            phase: Integer representing phase of middleware execution.
             func: The middleware function
         """
-        self._middlewares[order].append(func)
+        self._middlewares[phase].append(func)
 
     def default(self, func: ProxyMiddleware) -> ProxyMiddleware:
         """Register a middleware with default execution order that can yield.
