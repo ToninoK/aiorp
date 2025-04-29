@@ -3,8 +3,9 @@ import copy
 import json
 import logging
 from collections import defaultdict
+from dataclasses import dataclass
 from enum import IntEnum
-from typing import Any, AsyncGenerator, Awaitable, Callable
+from typing import Any, AsyncGenerator, Callable, List
 
 from aiohttp import ClientResponseError, client, web
 from aiohttp.web_exceptions import HTTPInternalServerError
@@ -16,7 +17,7 @@ from aiorp.response import ResponseType
 log = logging.getLogger(__name__)
 
 ErrorHandler = Callable[[ClientResponseError], None] | None
-ProxyMiddleware = Callable[[ProxyContext], Awaitable]
+ProxyMiddleware = Callable[[ProxyContext], AsyncGenerator[None, Any]]
 
 
 class MiddlewarePhase(IntEnum):
@@ -25,6 +26,19 @@ class MiddlewarePhase(IntEnum):
     EARLY = 0  # Authentication, security checks
     STANDARD = 500  # Logging, tracking, most transformations
     LATE = 1000  # Anything you might want to execute last before request is sent out
+
+
+@dataclass
+class ProxyMiddlewareDef:
+    """A ProxyMiddleware definition used to simply set the middleware for a handler
+
+    Args:
+        phase: The phase of the middleware
+        middleware: The middleware function
+    """
+
+    phase: MiddlewarePhase
+    middleware: ProxyMiddleware
 
 
 class HTTPProxyHandler(BaseHandler):
@@ -37,13 +51,21 @@ class HTTPProxyHandler(BaseHandler):
     incoming request is proxied.
 
     Args:
+        middlewares: You can if you want initialize the handler with a set of
+            proxy middlewares right away
         error_handler: Callable that is called when an error occurs during the proxied request.
 
     Raises:
         ValueError: If connection options contain invalid keys.
     """
 
-    def __init__(self, *args: Any, error_handler: ErrorHandler = None, **kwargs: Any):
+    def __init__(
+        self,
+        *args: Any,
+        middlewares: List[ProxyMiddlewareDef] | None = None,
+        error_handler: ErrorHandler = None,
+        **kwargs: Any,
+    ):
         """Initialize the HTTP proxy handler.
 
         Args:
@@ -73,6 +95,9 @@ class HTTPProxyHandler(BaseHandler):
         self._error_handler = error_handler
         self._middlewares = defaultdict(list)
 
+        for item in middlewares or []:
+            self._middlewares[item.phase].append(item.middleware)
+
     async def __call__(self, request: web.Request) -> web.Response | web.StreamResponse:
         """Handle incoming requests.
 
@@ -91,7 +116,6 @@ class HTTPProxyHandler(BaseHandler):
         """
         if self.context is None:
             raise ValueError("Proxy context must be set before the handler is invoked.")
-
         self.context.start_session()
 
         # We need to copy context since we don't want race conditions
@@ -202,9 +226,7 @@ class HTTPProxyHandler(BaseHandler):
                 ),
             )
 
-    def add_middleware(
-        self, order: int, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
-    ):
+    def add_middleware(self, middleware_def: ProxyMiddlewareDef):
         """Register a middleware with explicit ordering.
 
         It will be registered depending on the order and relative to
@@ -212,14 +234,12 @@ class HTTPProxyHandler(BaseHandler):
         while a higher number results in a later registration.
 
         Args:
-            order: Integer representing order of middleware registration.
+            phase: Integer representing phase of middleware execution.
             func: The middleware function
         """
-        self._middlewares[order].append(func)
+        self._middlewares[middleware_def.phase].append(middleware_def.middleware)
 
-    def default(
-        self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
-    ) -> Callable[[ProxyContext], AsyncGenerator[None, Any]]:
+    def default(self, func: ProxyMiddleware) -> ProxyMiddleware:
         """Register a middleware with default execution order that can yield.
 
         Executes the pre-yield code before late, but after early middleware,
@@ -231,12 +251,12 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.STANDARD, func)
+        self.add_middleware(
+            ProxyMiddlewareDef(phase=MiddlewarePhase.STANDARD, middleware=func)
+        )
         return func
 
-    def early(
-        self, func: Callable[[ProxyContext], AsyncGenerator[None, Any]]
-    ) -> Callable[[ProxyContext], AsyncGenerator[None, Any]]:
+    def early(self, func: ProxyMiddleware) -> ProxyMiddleware:
         """Register an early middleware that can yield.
 
         This middleware is registered as first, meaning the code before yield
@@ -248,7 +268,7 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.EARLY, func)
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.EARLY, func))
         return func
 
     def late(
@@ -266,5 +286,5 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.LATE, func)
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.LATE, func))
         return func
