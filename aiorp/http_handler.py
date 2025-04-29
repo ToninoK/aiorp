@@ -182,8 +182,6 @@ class HTTPProxyHandler(BaseHandler):
         Raises:
             ValueError: If proxy request is not set.
         """
-        if ctx.request is None:
-            raise ValueError("ProxyRequest not set")
         # Execute the request and check the response
         await ctx.request.load_content()
         resp = await ctx.session.request(

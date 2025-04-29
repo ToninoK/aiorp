@@ -1,5 +1,8 @@
+import asyncio
+from unittest import mock
+
 import pytest
-from aiohttp import WSCloseCode, WSMsgType, web
+from aiohttp import WSCloseCode, WSMsgType, client, web
 from aiohttp.test_utils import make_mocked_request
 
 from aiorp.base_handler import Rewrite
@@ -98,3 +101,76 @@ async def test_ws_handler_target_error(aiohttp_client, ws_target_ctx):
 
     assert msg.type == WSMsgType.CLOSE
     assert msg.data == WSCloseCode.GOING_AWAY
+
+
+@pytest.mark.asyncio
+async def test_ws_handler_proxy_error(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
+    client = await aiohttp_client(app)
+
+    with mock.patch("aiorp.ws_handler.WsProxyHandler._proxy_messages") as mock_proxy:
+        mock_proxy.side_effect = Exception("proxy error")
+        async with client.ws_connect("/") as ws:
+            msg = await ws.receive()
+
+    assert msg.type == WSMsgType.CLOSE
+    assert msg.data == WSCloseCode.INTERNAL_ERROR
+
+
+@pytest.mark.asyncio
+async def test_ws_handler_task_cancellation(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
+    cli = await aiohttp_client(app)
+
+    async def mock_proxy_messages(source, target):
+        if isinstance(source, client.ClientWebSocketResponse):
+            # Client->target task completes quickly
+            await asyncio.sleep(0.1)
+        else:
+            # Target->client task would run longer
+            await asyncio.sleep(10.0)
+
+    with mock.patch("aiorp.ws_handler.WsProxyHandler._proxy_messages") as mock_proxy:
+        mock_proxy.side_effect = mock_proxy_messages
+
+        async with cli.ws_connect("/") as ws:
+            msg = await ws.receive()
+
+    assert msg.type == WSMsgType.CLOSE
+    assert msg.data == WSCloseCode.OK
+
+
+@pytest.mark.asyncio
+async def test_ws_handler_task_cancellation_reverse(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
+    cli = await aiohttp_client(app)
+
+    async def mock_proxy_messages(source, target):
+        if isinstance(source, client.ClientWebSocketResponse):
+            # Target->client task would run longer
+            await asyncio.sleep(10.0)
+        else:
+            # Client->target task completes quickly
+            await asyncio.sleep(0.1)
+
+    with mock.patch("aiorp.ws_handler.WsProxyHandler._proxy_messages") as mock_proxy:
+        mock_proxy.side_effect = mock_proxy_messages
+
+        async with cli.ws_connect("/") as ws:
+            msg = await ws.receive()
+
+    assert msg.type == WSMsgType.CLOSE
+    assert msg.data == WSCloseCode.OK
+
+
+@pytest.mark.asyncio
+async def test_ws_handler_ping_pong(aiohttp_client, ws_target_ctx):
+    app = _proxy_app(context=ws_target_ctx)
+    cli = await aiohttp_client(app)
+
+    async with cli.ws_connect("/") as ws:
+        # WebSocket is working if we can send and receive a message
+        await ws.send_bytes(b"test")
+        msg = await ws.receive()
+        assert msg.type == WSMsgType.BINARY
+        assert msg.data == b"received: test"

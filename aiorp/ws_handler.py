@@ -100,7 +100,6 @@ class WsProxyHandler(BaseHandler):
 
         # Use the default proxy tunnel
         await self._proxy_tunnel(ctx)
-
         # Terminate the sockets
         await ctx.terminate_sockets()
 
@@ -115,9 +114,6 @@ class WsProxyHandler(BaseHandler):
             ValueError: When the tunneling starts before sockets are set (very unlikely)
         """
 
-        if ctx.ws_target is None or ctx.ws_source is None:
-            raise ValueError("Sockets must be set before tunneling can start")
-
         # Create and run message forwarding tasks
         source_to_target = asyncio.create_task(
             self._sock_to_sock(ctx.ws_source, ctx.ws_target)
@@ -125,7 +121,6 @@ class WsProxyHandler(BaseHandler):
         target_to_source = asyncio.create_task(
             self._sock_to_sock(ctx.ws_target, ctx.ws_source)
         )
-
         # Wait for first task to complete
         _, pending = await asyncio.wait(
             [source_to_target, target_to_source],
@@ -169,10 +164,6 @@ class WsProxyHandler(BaseHandler):
                     code=WSCloseCode.INTERNAL_ERROR, message=str(e).encode()
                 )
             raise
-        finally:
-            # Make sure the source socket is closed
-            if not ws_source.closed:
-                await ws_source.close()
 
     async def _proxy_messages(
         self, ws_source: SocketResponse, ws_target: SocketResponse
@@ -189,10 +180,6 @@ class WsProxyHandler(BaseHandler):
                 await ws_target.send_str(msg.data)
             elif msg.type == web.WSMsgType.BINARY:
                 await ws_target.send_bytes(msg.data)
-            elif msg.type == web.WSMsgType.PING:
-                await ws_target.ping()
-            elif msg.type == web.WSMsgType.PONG:
-                await ws_target.pong()
             elif msg.type in (
                 web.WSMsgType.CLOSE,
                 web.WSMsgType.CLOSING,
