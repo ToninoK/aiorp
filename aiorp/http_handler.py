@@ -226,7 +226,7 @@ class HTTPProxyHandler(BaseHandler):
                 ),
             )
 
-    def add_middleware(self, phase: int, func: ProxyMiddleware):
+    def add_middleware(self, middleware_def: ProxyMiddlewareDef):
         """Register a middleware with explicit ordering.
 
         It will be registered depending on the order and relative to
@@ -237,7 +237,7 @@ class HTTPProxyHandler(BaseHandler):
             phase: Integer representing phase of middleware execution.
             func: The middleware function
         """
-        self._middlewares[phase].append(func)
+        self._middlewares[middleware_def.phase].append(middleware_def.middleware)
 
     def default(self, func: ProxyMiddleware) -> ProxyMiddleware:
         """Register a middleware with default execution order that can yield.
@@ -251,7 +251,9 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.STANDARD, func)
+        self.add_middleware(
+            ProxyMiddlewareDef(phase=MiddlewarePhase.STANDARD, middleware=func)
+        )
         return func
 
     def early(self, func: ProxyMiddleware) -> ProxyMiddleware:
@@ -266,7 +268,7 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.EARLY, func)
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.EARLY, func))
         return func
 
     def late(
@@ -284,5 +286,5 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(MiddlewarePhase.LATE, func)
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.LATE, func))
         return func
