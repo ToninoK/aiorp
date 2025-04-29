@@ -10,19 +10,9 @@ pytestmark = [pytest.mark.websocket_handler]
 
 def _proxy_app(**kwargs):
     app = web.Application()
-    ctx = kwargs.get("context")
     ws_handler = WsProxyHandler(**kwargs)
     app.router.add_get("/", ws_handler)
     app.router.add_get("/sw", ws_handler)
-
-    async def startup(_):
-        ctx.start_session()
-
-    async def shutdown(_):
-        await ctx.close_session()
-
-    app.on_startup.append(startup)
-    app.on_shutdown.append(shutdown)
 
     return app
 

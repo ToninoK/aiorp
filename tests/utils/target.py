@@ -2,8 +2,8 @@ from aiohttp import web
 
 
 async def dump_data(request: web.Request):
-    return web.Response(
-        body={
+    return web.json_response(
+        {
             "_id": "680f5dfe0bf1efde2f3e7e51",
             "index": 0,
             "guid": "d96c062b-d12c-48a2-b8f6-ee2993ae9981",
@@ -34,7 +34,7 @@ async def store_data(request: web.Request) -> web.Response:
 
 
 async def return_error(request: web.Request) -> web.Response:
-    return web.HTTPConflict(reason="Conflict error")
+    raise web.HTTPConflict(reason="Conflict error")
 
 
 async def internal_error(request: web.Request) -> web.Response:

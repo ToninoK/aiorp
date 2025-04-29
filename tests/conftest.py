@@ -14,6 +14,7 @@ async def target_ctx(aiohttp_server):
     server = await aiohttp_server(target_app())
     url = yarl.URL(f"http://localhost:{server.port}")
     context = ProxyContext(url=url)
+    context.start_session()
     yield context
 
     await context.close_session()
@@ -24,6 +25,7 @@ async def ws_target_ctx(aiohttp_server):
     server = await aiohttp_server(ws_target_app())
     url = yarl.URL(f"http://localhost:{server.port}")
     context = ProxyContext(url=url)
+    context.start_session()
     yield context
 
     await context.close_session()
@@ -34,13 +36,13 @@ def proxy_server(aiohttp_server, target_ctx, ws_target_ctx):
     async def proxy_server_setup(**kwargs):
         application = web.Application()
 
-        http_handler = HTTPProxyHandler(context=target_ctx, **kwargs)
-        ws_handler = WsProxyHandler(context=ws_target_ctx, **kwargs)
+        http_handler = HTTPProxyHandler(context=target_ctx, **kwargs.get("http", {}))
+        ws_handler = WsProxyHandler(context=ws_target_ctx, **kwargs.get("ws", {}))
 
         application.add_routes(
             [
-                web.get("/http", http_handler),
-                web.post("/http", http_handler),
+                web.get("/http/{path:.*}", http_handler),
+                web.post("/http/{path:.*}", http_handler),
                 web.get("/ws", ws_handler),
             ]
         )
