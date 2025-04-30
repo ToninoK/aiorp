@@ -1,4 +1,4 @@
-from .context import ProxyContext
+from .context import ProxyContext, configure_contexts
 from .http_handler import HTTPProxyHandler, MiddlewarePhase, ProxyMiddlewareDef
 from .request import ProxyRequest
 from .response import ProxyResponse
@@ -14,4 +14,5 @@ __all__ = [
     "ProxyMiddlewareDef",
     "MiddlewarePhase",
     "Rewrite",
+    "configure_contexts",
 ]
