@@ -34,10 +34,24 @@ jobs:
         run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
         id: extract_branch
 
+      - name: Check if stable release
+        id: check_stable
+        run: |
+          if [[ "${{ steps.extract_branch.outputs.branch }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Deploy mike
         env:
           GIT_COMMITTER_EMAIL: github-actions[bot]@users.noreply.github.com
           GIT_COMMITTER_NAME: github-actions[bot]
         run: |
           cd mkdocs
-          mike deploy --push ${{ steps.extract_branch.outputs.branch }}
+          if [[ "${{ steps.check_stable.outputs.is_stable }}" == "true" ]]; then
+            mike deploy --push --update-aliases ${{ steps.extract_branch.outputs.branch }} latest stable
+            mike set-default --push stable
+          else
+            mike deploy --push --update-aliases ${{ steps.extract_branch.outputs.branch }} latest unstable
+          fi
