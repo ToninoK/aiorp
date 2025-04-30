@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List
 
 from aiohttp import ClientSession, ClientWebSocketResponse, client, web
 from aiohttp.web_ws import WebSocketResponse
@@ -168,3 +168,16 @@ class ProxyContext:
         if self._ws_source and self._ws_target:
             await self._ws_source.close()
             await self._ws_target.close()
+
+
+def configure_contexts(app: web.Application, ctxs: List[ProxyContext]):
+    async def _startup(_):
+        for ctx in ctxs:
+            ctx.start_session()
+
+    async def _shutdown(_):
+        for ctx in ctxs:
+            await ctx.close_session()
+
+    app.on_startup.append(_startup)
+    app.on_shutdown.append(_shutdown)

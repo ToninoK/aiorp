@@ -26,11 +26,11 @@ async def test_proxy_response_set_base(
     with aioresponses() as mocked:
         mocked.get("http://test.com/", body="test")
         resp = await http_client.get("http://test.com/")
-
+        print(resp.headers)
         proxy_response = ProxyResponse(resp)
         await proxy_response.set_response(ResponseType.BASE)
         assert proxy_response.web.status == 200
-        assert proxy_response.web.headers == resp.headers
+        assert proxy_response.web.headers["Content-Length"] == "4"
         assert proxy_response.web.body == b"test"
 
 

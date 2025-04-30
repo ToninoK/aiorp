@@ -2,6 +2,7 @@ from enum import Enum
 
 from aiohttp import client, web
 from aiohttp.web import Response, StreamResponse
+from multidict import CIMultiDict
 
 
 class ResponseType(Enum):
@@ -84,6 +85,14 @@ class ProxyResponse:
 
     async def _get_stream_response(self) -> StreamResponse:
         """Convert incoming response to stream response."""
+
+        headers = CIMultiDict(self.in_resp.headers)
+
+        # These headers should not be proxied
+        headers.pop("content-length", None)
+        headers.pop("content-encoding", None)
+        headers.pop("content-type", None)
+
         stream_resp = StreamResponse(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
@@ -93,23 +102,21 @@ class ProxyResponse:
 
     async def _get_base_response(self) -> Response:
         """Convert incoming response to base response."""
-        text = await self.in_resp.text()
-        # Don't set content_type and charset if it's already in headers
-        # This avoids duplicate/conflicting settings
-        content_type = None
-        charset = None
+        content = await self.in_resp.read()
 
-        if not self.in_resp.headers.get("Content-Type"):
-            content_type = self.in_resp.content_type
-            charset = self.in_resp.charset
+        headers = CIMultiDict(self.in_resp.headers)
+
+        # These headers should not be proxied
+        headers.pop("content-length", None)
+        headers.pop("content-encoding", None)
+
+        if content:
+            headers["content-length"] = str(len(content))
 
         resp = Response(
             status=self.in_resp.status,
             reason=self.in_resp.reason,
-            headers=self.in_resp.headers,
-            content_type=content_type,
-            charset=charset,
-            # We load just text, web.Response takes care of encoding if needed
-            text=text,
+            headers=headers,
+            body=content,
         )
         return resp
