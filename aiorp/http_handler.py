@@ -1,7 +1,6 @@
 import asyncio
 import copy
 import json
-import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from enum import IntEnum
@@ -12,9 +11,6 @@ from aiohttp.web_exceptions import HTTPInternalServerError
 
 from aiorp.base_handler import BaseHandler
 from aiorp.context import ProxyContext
-from aiorp.response import ResponseType
-
-log = logging.getLogger(__name__)
 
 ErrorHandler = Callable[[ClientResponseError], None] | None
 ProxyMiddleware = Callable[[ProxyContext], AsyncGenerator[None, Any]]
@@ -133,7 +129,7 @@ class HTTPProxyHandler(BaseHandler):
 
         # Check if the web response was set and set it if it wasn't
         if not ctx.response.web_response_set:
-            await ctx.response.set_response(response_type=ResponseType.BASE)
+            await ctx.response.set_response()
 
         # Return the response
         return ctx.response.web
