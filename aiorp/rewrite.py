@@ -32,7 +32,6 @@ class Rewrite:
         """Rewrite the path of the request URL from current to new value.
 
         Args:
-            current: The current path value to replace.
-            new: The new path value to replace with.
+            url: The url to apply the rewrite to
         """
         return url.with_path(url.path.replace(self.rfrom, self.rto))

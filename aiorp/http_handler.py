@@ -228,8 +228,7 @@ class HTTPProxyHandler(BaseHandler):
         while a higher number results in a later registration.
 
         Args:
-            phase: Integer representing phase of middleware execution.
-            func: The middleware function
+            middleware_def: The proxy middleware definition to add
         """
         self._middlewares[middleware_def.phase].append(middleware_def.middleware)
 
