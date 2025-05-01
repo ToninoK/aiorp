@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Quickstart
 
 Want to try it out ASAP to see if it suits your use-case?
@@ -21,19 +26,21 @@ from aiohttp import web
 from aiorp import HTTPProxyHandler, ProxyContext
 from aiorp.context import configure_contexts
 
-POKEAPI_URL = yarl.URL("https://your-target-server.com")
+TARGET_URL = yarl.URL("https://your-target-server.com")  # (1)!
 
 app = web.Application()
 
-pokeapi_ctx = ProxyContext(POKEAPI_URL)
-configure_contexts(app, [pokeapi_ctx])
+ctx = ProxyContext(TARGET_URL)
+configure_contexts(app, [ctx])
 
-pokeapi_handler = HTTPProxyHandler(context=pokeapi_ctx)
+handler = HTTPProxyHandler(context=ctx)
 
-app.router.add_get("/{path:.*}", pokeapi_handler)
+app.router.add_get("/{path:.*}", handler)  # (2)!
 
 web.run_app(app, host="0.0.0.0", port=8000)
 ```
+
+1. Replace with your target server URL
 
 ## What did I just read?
 
@@ -74,8 +81,8 @@ application we want to use for our proxy server.
 
 ```python
 # ...
-pokeapi_ctx = ProxyContext(POKEAPI_URL)
-configure_contexts(app, [pokeapi_ctx])
+ctx = ProxyContext(TARGET_URL)
+configure_contexts(app, [ctx])
 # ...
 ```
 
@@ -102,9 +109,9 @@ closed during the application lifecycle.
 
 ```python
 # ...
-pokeapi_handler = HTTPProxyHandler(context=pokeapi_ctx)
+handler = HTTPProxyHandler(context=ctx)
 
-app.router.add_get("/{path:.*}", pokeapi_handler)
+app.router.add_get("/{path:.*}", handler)
 # ...
 ```
 
@@ -113,12 +120,11 @@ What exactly does the handler do? It accepts a `web.Request` object,
 and proxies it to the target server defined in the context, returning the
 target server response.
 
-The second line simply defines that all incoming GET requests be proxied to the
-target server API.
+In the second line we simply route all of the GET requests to the handler.
 
 ## Where to next?
 
-This is just the bare-bones functionality, if you want to learn more about it
-you should check out the examples to get a test of what this package offers,
-or you can start digging right through the [ Advanced documentation ]() and
-the [API reference](./api_reference/BaseHandler.md).
+This is just the bare-bones functionality, if you want a more complex example,
+you should check out the [Tutorial](./tutorial.md). After that, I recommend
+checking out the [Advanced documentation](../advanced/) and the
+[API reference](./api_reference/BaseHandler.md).
