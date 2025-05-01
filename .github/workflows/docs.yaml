@@ -10,10 +10,6 @@ on:
 jobs:
   docs:
     name: Deploy docs to GitHub Pages
-    strategy:
-      matrix:
-        python-version:
-          - "3.13"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +19,7 @@ jobs:
       - name: Install uv and set the python version
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.13"
 
       - name: Install deps
         run: |
