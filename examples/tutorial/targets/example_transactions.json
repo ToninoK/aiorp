@@ -1,0 +1,58 @@
+{
+    "transactions": [
+        {
+            "id": 1,
+            "shop_name": "Walmart",
+            "shop_id": "WAL001",
+            "category": "grocery",
+            "amount": 156.75,
+            "description": "Weekly groceries",
+            "date": "2023-06-01"
+        },
+        {
+            "id": 2,
+            "shop_name": "Best Buy",
+            "shop_id": "BBY001",
+            "category": "tech",
+            "amount": 899.99,
+            "description": "New laptop purchase",
+            "date": "2023-06-02"
+        },
+        {
+            "id": 3,
+            "shop_name": "Zara",
+            "shop_id": "ZAR001",
+            "category": "clothes",
+            "amount": 245.50,
+            "description": "Summer collection",
+            "date": "2023-06-03"
+        },
+        {
+            "id": 4,
+            "shop_name": "Whole Foods",
+            "shop_id": "WFM001",
+            "category": "grocery",
+            "amount": 89.99,
+            "description": "Organic produce",
+            "date": "2023-06-04"
+        },
+        {
+            "id": 5,
+            "shop_name": "Apple Store",
+            "shop_id": "APP001",
+            "category": "tech",
+            "amount": 1299.99,
+            "description": "iPhone purchase",
+            "date": "2023-06-05"
+        },
+        {
+            "id": 6,
+            "shop_name": "H&M",
+            "shop_id": "HNM001",
+            "category": "clothes",
+            "amount": 125.75,
+            "description": "Casual wear",
+            "date": "2023-06-06"
+        }
+    ]
+}
