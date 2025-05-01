@@ -1,11 +1,16 @@
 [
   {
+    "version": "0.1.0-alpha.2",
+    "title": "0.1.0-alpha.2",
+    "aliases": [
+      "unstable",
+      "latest"
+    ]
+  },
+  {
     "version": "0.1.0-alpha.1",
     "title": "0.1.0-alpha.1",
-    "aliases": [
-      "latest",
-      "unstable"
-    ]
+    "aliases": []
   },
   {
     "version": "0.1.0-alpha",
