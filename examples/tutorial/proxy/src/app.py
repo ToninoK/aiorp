@@ -1,9 +1,9 @@
 from aiohttp import web
-from proxy.routers.inventory_router import inventory_ctx
-from proxy.routers.inventory_router import routes as inventory_routes
-from proxy.routers.transactions_router import routes as transactions_routes
-from proxy.routers.transactions_router import transactions_ctx
-from proxy.utils.auth import login_handler
+from src.routers.inventory_router import inventory_ctx
+from src.routers.inventory_router import routes as inventory_routes
+from src.routers.transactions_router import routes as transactions_routes
+from src.routers.transactions_router import transactions_ctx
+from src.utils.auth import login_handler
 
 from aiorp import configure_contexts
 

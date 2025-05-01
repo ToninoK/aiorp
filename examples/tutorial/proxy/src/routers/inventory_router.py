@@ -1,8 +1,8 @@
 from typing import Any, AsyncGenerator
 
 from aiohttp import web
-from proxy.utils.auth import auth_middleware
-from proxy.utils.compression import compression_middleware
+from src.utils.auth import auth_middleware
+from src.utils.compression import compression_middleware
 from yarl import URL
 
 from aiorp import HTTPProxyHandler, MiddlewarePhase, ProxyContext, ProxyMiddlewareDef
@@ -14,7 +14,7 @@ INVENTORY_URL = URL("http://localhost:8002")
 # Create route table
 routes = web.RouteTableDef()
 
-# Create proxy context and handler
+# Create src.context and handler
 inventory_ctx = ProxyContext(url=INVENTORY_URL)
 inventory_handler = HTTPProxyHandler(context=inventory_ctx)
 

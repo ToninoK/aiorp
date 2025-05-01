@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator
 
 import jwt
@@ -48,8 +48,8 @@ def create_token(user_id: str) -> str:
     """Create a new JWT token for the user"""
     payload = {
         "user_id": user_id,
-        "exp": datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS),
-        "iat": datetime.utcnow(),
+        "exp": datetime.now(tz=timezone.utc) + timedelta(seconds=JWT_EXP_DELTA_SECONDS),
+        "iat": datetime.now(tz=timezone.utc),
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
@@ -91,7 +91,7 @@ async def login_handler(request):
         data = await request.json()
         username = data.get("username")
         password = data.get("password")
-        print(username, password)
+
         if not username or not password:
             raise web.HTTPBadRequest(reason="Username and password are required")
 

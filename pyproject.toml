@@ -34,7 +34,7 @@ multi_line_output = 3
 default_section = "THIRDPARTY"
 honor_noqa = true
 include_trailing_comma = true
-known_third_party = ["aiohttp", "aioresponses", "jwt", "multidict", "proxy", "pytest", "yarl"]
+known_third_party = ["aiohttp", "aioresponses", "jwt", "multidict", "pytest", "src", "yarl"]
 atomic = true
 
 [tool.pylint.master]

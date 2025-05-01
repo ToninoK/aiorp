@@ -1,8 +1,8 @@
 from typing import Any, AsyncGenerator
 
 from aiohttp import web
-from proxy.utils.auth import auth_middleware
-from proxy.utils.compression import compression_middleware
+from src.utils.auth import auth_middleware
+from src.utils.compression import compression_middleware
 from yarl import URL
 
 from aiorp import HTTPProxyHandler, MiddlewarePhase, ProxyContext, ProxyMiddlewareDef
@@ -14,7 +14,7 @@ TRANSACTIONS_URL = URL("http://localhost:8001")
 # Create route table
 routes = web.RouteTableDef()
 
-# Create proxy context and handler
+# Create src.context and handler
 transactions_ctx = ProxyContext(url=TRANSACTIONS_URL)
 transactions_handler = HTTPProxyHandler(context=transactions_ctx)
 
