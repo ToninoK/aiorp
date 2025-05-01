@@ -2,10 +2,7 @@
   {
     "version": "0.1.0-alpha.2",
     "title": "0.1.0-alpha.2",
-    "aliases": [
-      "unstable",
-      "latest"
-    ]
+    "aliases": []
   },
   {
     "version": "0.1.0-alpha.1",
@@ -15,6 +12,9 @@
   {
     "version": "0.1.0-alpha",
     "title": "0.1.0-alpha",
-    "aliases": []
+    "aliases": [
+      "latest",
+      "unstable"
+    ]
   }
 ]
