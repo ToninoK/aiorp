@@ -2,8 +2,10 @@ name: Docs
 
 on:
   push:
-    branches:
-      - "[0-9]+.[0-9]+.[0-9]+(-[a-z](.[0-9]+)?)?"
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+-[a-z]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+-[a-z]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   docs:
@@ -29,10 +31,19 @@ jobs:
           cd mkdocs
           uv pip install -r requirements.txt
 
-      - name: Extract branch name
+      - name: Extract tag name
         shell: bash
-        run: echo "branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}" >> $GITHUB_OUTPUT
-        id: extract_branch
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        id: extract_tag
+
+      - name: Check if stable release
+        id: check_stable
+        run: |
+          if [[ "${{ steps.extract_tag.outputs.tag }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Deploy mike
         env:
@@ -40,4 +51,9 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
         run: |
           cd mkdocs
-          mike deploy --push ${{ steps.extract_branch.outputs.branch }}
+          if [[ "${{ steps.check_stable.outputs.is_stable }}" == "true" ]]; then
+            mike deploy --push --update-aliases ${{ steps.extract_tag.outputs.tag }} latest stable
+            mike set-default --push stable
+          else
+            mike deploy --push --update-aliases ${{ steps.extract_tag.outputs.tag }} latest unstable
+          fi
