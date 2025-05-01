@@ -23,6 +23,12 @@ transactions_handler = HTTPProxyHandler(context=transactions_ctx)
 @transactions_handler.default
 async def transactions_auth(ctx) -> AsyncGenerator[None, Any]:
     """Add transactions API key to requests"""
+    user = ctx.state["user"]
+    shop_id = ctx.request.in_req.match_info["shop_id"]
+
+    if user["user_id"] != shop_id:
+        raise web.HTTPForbidden()
+
     ctx.request.headers["X-API-Key"] = TRANSACTIONS_API_KEY
     yield
 
@@ -39,7 +45,7 @@ transactions_handler.add_middleware(
 
 
 # Define routes
-@routes.route("*", "/transactions{tail:.*}")
+@routes.route("*", "/shops/{shop_id:.*}/transactions{tail:.*}")
 async def transactions_proxy(request):
     """Proxy all transactions requests"""
     return await transactions_handler(request)

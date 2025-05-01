@@ -22,23 +22,23 @@ USERS = {
         "role": "user",
     },
     "BBY001": {
-        "password": "wal001",
+        "password": "bby001",
         "role": "user",
     },
     "ZAR001": {
-        "password": "wal001",
+        "password": "zar001",
         "role": "user",
     },
     "WFM001": {
-        "password": "wal001",
+        "password": "wfm001",
         "role": "user",
     },
     "APP001": {
-        "password": "wal001",
+        "password": "app001",
         "role": "user",
     },
     "HNM001": {
-        "password": "wal001",
+        "password": "hnm001",
         "role": "user",
     },
 }
