@@ -3,32 +3,38 @@ from src.routers.inventory_router import inventory_ctx
 from src.routers.inventory_router import routes as inventory_routes
 from src.routers.transactions_router import routes as transactions_routes
 from src.routers.transactions_router import transactions_ctx
-from src.utils.auth import login_handler
+from src.utils.auth import USERS, create_token
 
 from aiorp import configure_contexts
 
-# Create route table
-routes = web.RouteTableDef()
 
-
-# Define routes
-@routes.post("/login")
 async def login(request):
     """Handle user login"""
-    return await login_handler(request)
+    data = await request.json()
+    username = data.get("username")
+    password = data.get("password")
+
+    if not username or not password:
+        raise web.HTTPBadRequest(reason="Username and password are required")
+
+    user = USERS.get(username)
+    if not user or user["password"] != password:
+        raise web.HTTPUnauthorized(reason="Invalid username or password")
+
+    token = create_token(username)
+    return web.json_response(
+        {"token": token, "user": {"username": username, "role": user["role"]}}
+    )
 
 
 def create_app() -> web.Application:
     """Create and configure the application"""
     app = web.Application()
 
-    # Configure aiorp contexts
     configure_contexts(app, [transactions_ctx, inventory_ctx])
 
-    # Add routes
-    app.add_routes(routes)
+    app.router.add_post("/login", login)
 
-    # Setup routers
     app.add_routes(transactions_routes)
     app.add_routes(inventory_routes)
 

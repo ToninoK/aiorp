@@ -23,14 +23,20 @@ Key features:
 - Flexible routing capabilities
 - Python 3.10+ support
 
-Get started quickly with our [Quickstart guide](./quickstart.md), dive deeper with the [Advanced Guide](./advanced), or explore the complete [API Reference](./api_reference/BaseHandler.md).
+Get started quickly with our [Quickstart guide](./quickstart.md), dive deeper
+with the [Advanced Guide](./advanced), or explore the complete
+[API Reference](./api_reference/BaseHandler.md).
 
 ## Installation
 
 Install AIORP using pip:
 
+<!-- termynal -->
+
 ```bash
 pip install aiorp
+---> 100%
+Installed
 ```
 
 ## Creators

@@ -13,10 +13,6 @@ JWT_EXP_DELTA_SECONDS = 3600  # 1 hour
 
 # Sample user database - in production, this should be in a proper database
 USERS = {
-    "admin": {
-        "password": "admin123",  # In production, use proper password hashing
-        "role": "admin",
-    },
     "WAL001": {
         "password": "wal001",
         "role": "user",
@@ -57,7 +53,9 @@ def create_token(user_id: str) -> str:
 def verify_token(token: str) -> dict:
     """Verify the JWT token and return the payload"""
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(
+            token, JWT_SECRET, algorithms=[JWT_ALGORITHM], verify_exp=True
+        )
         return payload
     except jwt.ExpiredSignatureError:
         raise web.HTTPUnauthorized(reason="Token has expired")
@@ -83,27 +81,3 @@ async def auth_middleware(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
         raise e
     except Exception as e:
         raise web.HTTPUnauthorized(reason=str(e))
-
-
-async def login_handler(request):
-    """Handle user login and token generation"""
-    try:
-        data = await request.json()
-        username = data.get("username")
-        password = data.get("password")
-
-        if not username or not password:
-            raise web.HTTPBadRequest(reason="Username and password are required")
-
-        user = USERS.get(username)
-        if not user or user["password"] != password:
-            raise web.HTTPUnauthorized(reason="Invalid username or password")
-
-        token = create_token(username)
-        return web.json_response(
-            {"token": token, "user": {"username": username, "role": user["role"]}}
-        )
-    except web.HTTPException:
-        raise
-    except Exception as e:
-        raise web.HTTPBadRequest(reason=str(e))
