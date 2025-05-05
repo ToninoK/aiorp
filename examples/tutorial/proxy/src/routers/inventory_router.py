@@ -20,7 +20,7 @@ inventory_handler = HTTPProxyHandler(context=inventory_ctx)
 
 
 # Add authentication middleware for inventory
-@inventory_handler.default
+@inventory_handler.proxy
 async def inventory(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
     """Add inventory API key to requests"""
     user = ctx.state["user"]
@@ -35,12 +35,12 @@ async def inventory(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
 
 # Add main application authentication middleware
 inventory_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.EARLY, auth_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.CLIENT_EDGE, auth_middleware)
 )
 
 # Add compression middleware
 inventory_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.LATE, compression_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.TARGET_EDGE, compression_middleware)
 )
 
 

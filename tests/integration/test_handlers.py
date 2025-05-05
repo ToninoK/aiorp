@@ -63,7 +63,7 @@ async def test_modify_request(aiohttp_client, proxy_server):
             "rewrite": http_rewrite,
             "middlewares": [
                 ProxyMiddlewareDef(
-                    phase=MiddlewarePhase.STANDARD, middleware=modify_request
+                    phase=MiddlewarePhase.PROXY, middleware=modify_request
                 )
             ],
         }
@@ -90,7 +90,7 @@ async def test_modify_response(aiohttp_client, proxy_server):
             "rewrite": http_rewrite,
             "middlewares": [
                 ProxyMiddlewareDef(
-                    phase=MiddlewarePhase.STANDARD, middleware=modify_response
+                    phase=MiddlewarePhase.PROXY, middleware=modify_response
                 )
             ],
         }
@@ -113,9 +113,7 @@ async def test_modify_request_and_response(aiohttp_client, proxy_server):
         http={
             "rewrite": http_rewrite,
             "middlewares": [
-                ProxyMiddlewareDef(
-                    phase=MiddlewarePhase.STANDARD, middleware=modify_both
-                )
+                ProxyMiddlewareDef(phase=MiddlewarePhase.PROXY, middleware=modify_both)
             ],
         }
     )

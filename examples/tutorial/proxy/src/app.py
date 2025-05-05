@@ -1,8 +1,10 @@
 from aiohttp import web
-from src.routers.inventory_router import inventory_ctx
-from src.routers.inventory_router import routes as inventory_routes
-from src.routers.transactions_router import routes as transactions_routes
-from src.routers.transactions_router import transactions_ctx
+from src.routers import (
+    inventory_ctx,
+    inventory_handler,
+    transactions_ctx,
+    transactions_handler,
+)
 from src.utils.auth import USERS, create_token
 
 from aiorp import configure_contexts
@@ -31,13 +33,11 @@ def create_app() -> web.Application:
     """Create and configure the application"""
     app = web.Application()
 
-    configure_contexts(app, [transactions_ctx, inventory_ctx])
+    configure_contexts(app, [inventory_ctx, transactions_ctx])
 
     app.router.add_post("/login", login)
-
-    app.add_routes(transactions_routes)
-    app.add_routes(inventory_routes)
-
+    app.router.add_route("*", "/transactions{tail:.*}", transactions_handler)
+    app.router.add_route("*", "/inventory{tail:.*}", inventory_handler)
     return app
 
 

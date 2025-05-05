@@ -20,7 +20,7 @@ transactions_handler = HTTPProxyHandler(context=transactions_ctx)
 
 
 # Add authentication middleware for transactions
-@transactions_handler.default
+@transactions_handler.proxy
 async def transactions_auth(ctx) -> AsyncGenerator[None, Any]:
     """Add transactions API key to requests"""
     user = ctx.state["user"]
@@ -35,12 +35,12 @@ async def transactions_auth(ctx) -> AsyncGenerator[None, Any]:
 
 # Add main application authentication middleware
 transactions_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.EARLY, auth_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.CLIENT_EDGE, auth_middleware)
 )
 
 # Add compression middleware
 transactions_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.LATE, compression_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.TARGET_EDGE, compression_middleware)
 )
 
 

@@ -1,40 +1,16 @@
 from datetime import datetime, timedelta, timezone
-from typing import Any, AsyncGenerator
 
 import jwt
 from aiohttp import web
 
-from aiorp.context import ProxyContext
-
-# Secret key for JWT signing - in production, this should be in environment variables
-JWT_SECRET = "your-super-secret-jwt-key"
+JWT_SECRET = "your-super-secret-jwt-key"  #
 JWT_ALGORITHM = "HS256"
-JWT_EXP_DELTA_SECONDS = 3600  # 1 hour
+JWT_EXP_DELTA_SECONDS = 3600  # 1hr
 
-# Sample user database - in production, this should be in a proper database
+
 USERS = {
     "WAL001": {
         "password": "wal001",
-        "role": "user",
-    },
-    "BBY001": {
-        "password": "bby001",
-        "role": "user",
-    },
-    "ZAR001": {
-        "password": "zar001",
-        "role": "user",
-    },
-    "WFM001": {
-        "password": "wfm001",
-        "role": "user",
-    },
-    "APP001": {
-        "password": "app001",
-        "role": "user",
-    },
-    "HNM001": {
-        "password": "hnm001",
         "role": "user",
     },
 }
@@ -61,23 +37,3 @@ def verify_token(token: str) -> dict:
         raise web.HTTPUnauthorized(reason="Token has expired")
     except jwt.InvalidTokenError:
         raise web.HTTPUnauthorized(reason="Invalid token")
-
-
-async def auth_middleware(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
-    """Middleware to handle authentication for proxy requests"""
-    auth_header = ctx.request.in_req.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise web.HTTPUnauthorized(reason="Missing or invalid Authorization header")
-
-    token = auth_header.split(" ")[1]
-    try:
-        payload = verify_token(token)
-        # Store user info in the context state for potential use in other middlewares
-        if ctx.state is None:
-            ctx.state = {}
-        ctx.state["user"] = payload
-        yield
-    except web.HTTPUnauthorized as e:
-        raise e
-    except Exception as e:
-        raise web.HTTPUnauthorized(reason=str(e))

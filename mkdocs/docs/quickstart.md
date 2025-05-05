@@ -13,12 +13,8 @@ Let's set up a minimal example for you.
 Let's get the package installed for starters.
 In your virtual environment run the following:
 
-<!-- termynal -->
-
 ```bash
 pip install aiorp
----> 100%
-Installed
 ```
 
 Once this completes you should have both `aiorp` and `aiohttp` installed.

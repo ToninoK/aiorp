@@ -1,6 +1,6 @@
 [project]
 name = "aiorp"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "A simple reverse proxy library based on aiohttp."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -22,7 +22,6 @@ dev = [
   "pytest-aiohttp>=1.1.0",
   "pytest-cov>=6.1.1",
   "pytest-xdist>=3.6.1",
-  "termynal>=0.13.0",
 ]
 
 [tool.uv]
@@ -57,6 +56,11 @@ disable = [
   "protected-access",
   "redefined-outer-name",
 ]
+
+[tool.pylint.SIMILARITIES]
+ignore-imports = 'yes'
+ignore-docstrings = 'yes'
+ignore-comments = 'yes'
 
 [tool.pylint.reports]
 output-format = "colorized"

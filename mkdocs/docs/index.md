@@ -31,12 +31,8 @@ with the [Advanced Guide](./advanced), or explore the complete
 
 Install AIORP using pip:
 
-<!-- termynal -->
-
 ```bash
 pip install aiorp
----> 100%
-Installed
 ```
 
 ## Creators
