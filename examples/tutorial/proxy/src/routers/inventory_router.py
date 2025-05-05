@@ -1,8 +1,8 @@
 from typing import Any, AsyncGenerator
 
 from aiohttp import web
-from proxy.utils.auth import auth_middleware
-from proxy.utils.compression import compression_middleware
+from src.utils.auth import auth_middleware
+from src.utils.compression import compression_middleware
 from yarl import URL
 
 from aiorp import HTTPProxyHandler, MiddlewarePhase, ProxyContext, ProxyMiddlewareDef
@@ -14,13 +14,13 @@ INVENTORY_URL = URL("http://localhost:8002")
 # Create route table
 routes = web.RouteTableDef()
 
-# Create proxy context and handler
+# Create src.context and handler
 inventory_ctx = ProxyContext(url=INVENTORY_URL)
 inventory_handler = HTTPProxyHandler(context=inventory_ctx)
 
 
 # Add authentication middleware for inventory
-@inventory_handler.default
+@inventory_handler.proxy
 async def inventory(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
     """Add inventory API key to requests"""
     user = ctx.state["user"]
@@ -35,12 +35,12 @@ async def inventory(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
 
 # Add main application authentication middleware
 inventory_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.EARLY, auth_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.CLIENT_EDGE, auth_middleware)
 )
 
 # Add compression middleware
 inventory_handler.add_middleware(
-    ProxyMiddlewareDef(MiddlewarePhase.LATE, compression_middleware)
+    ProxyMiddlewareDef(MiddlewarePhase.TARGET_EDGE, compression_middleware)
 )
 
 

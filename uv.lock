@@ -107,10 +107,11 @@ wheels = [
 
 [[package]]
 name = "aiorp"
-version = "0.1.0"
+version = "0.1.0a3"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
+    { name = "mkdocs-material" },
 ]
 
 [package.dev-dependencies]
@@ -128,7 +129,10 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "aiohttp", specifier = ">=3.11.12" }]
+requires-dist = [
+    { name = "aiohttp", specifier = ">=3.11.12" },
+    { name = "mkdocs-material", specifier = ">=9.6.12" },
+]
 
 [package.metadata.requires-dev]
 dev = [

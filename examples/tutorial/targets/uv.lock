@@ -201,7 +201,7 @@ wheels = [
 ]
 
 [[package]]
-name = "target-servers"
+name = "targets"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
@@ -209,7 +209,7 @@ dependencies = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "aiohttp", specifier = ">=3.11.18" }]
+requires-dist = [{ name = "aiohttp", specifier = ">=3.11.12" }]
 
 [[package]]
 name = "yarl"

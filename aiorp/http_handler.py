@@ -19,9 +19,11 @@ ProxyMiddleware = Callable[[ProxyContext], AsyncGenerator[None, Any]]
 class MiddlewarePhase(IntEnum):
     """Middleware phase enumeration."""
 
-    EARLY = 0  # Authentication, security checks
-    STANDARD = 500  # Logging, tracking, most transformations
-    LATE = 1000  # Anything you might want to execute last before request is sent out
+    CLIENT_EDGE = 0  # Authentication, security checks
+    PROXY = 500  # Logging, tracking, most transformations
+    TARGET_EDGE = (
+        1000  # Anything you might want to execute last before request is sent out
+    )
 
 
 @dataclass
@@ -232,11 +234,11 @@ class HTTPProxyHandler(BaseHandler):
         """
         self._middlewares[middleware_def.phase].append(middleware_def.middleware)
 
-    def default(self, func: ProxyMiddleware) -> ProxyMiddleware:
+    def proxy(self, func: ProxyMiddleware) -> ProxyMiddleware:
         """Register a middleware with default execution order that can yield.
 
-        Executes the pre-yield code before late, but after early middleware,
-        and the post-yield code after late but before early middleware.
+        Executes the pre-yield code before target edge, but after client edge middleware,
+        and the post-yield code after target edge but before client edge middleware.
 
         Args:
             func: The middleware function which yields.
@@ -245,12 +247,12 @@ class HTTPProxyHandler(BaseHandler):
             The decorated middleware function.
         """
         self.add_middleware(
-            ProxyMiddlewareDef(phase=MiddlewarePhase.STANDARD, middleware=func)
+            ProxyMiddlewareDef(phase=MiddlewarePhase.PROXY, middleware=func)
         )
         return func
 
-    def early(self, func: ProxyMiddleware) -> ProxyMiddleware:
-        """Register an early middleware that can yield.
+    def client_edge(self, func: ProxyMiddleware) -> ProxyMiddleware:
+        """Register an client edge middleware that can yield.
 
         This middleware is registered as first, meaning the code before yield
         will act before any other one, but code after yield will execute the last.
@@ -261,13 +263,13 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.EARLY, func))
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.CLIENT_EDGE, func))
         return func
 
-    def late(
+    def target_edge(
         self, func: Callable[[ProxyContext], AsyncGenerator[None]]
     ) -> Callable[[ProxyContext], AsyncGenerator[None]]:
-        """Register a late middleware that can yield.
+        """Register a target edge middleware that can yield.
 
         This middleware is registered the last.
         The code before yield will act after all other middlewares. The code after
@@ -279,5 +281,5 @@ class HTTPProxyHandler(BaseHandler):
         Returns:
             The decorated middleware function.
         """
-        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.LATE, func))
+        self.add_middleware(ProxyMiddlewareDef(MiddlewarePhase.TARGET_EDGE, func))
         return func

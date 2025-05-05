@@ -14,7 +14,7 @@ Let's get the package installed for starters.
 In your virtual environment run the following:
 
 ```bash
-pip3 install aiorp
+pip install aiorp
 ```
 
 Once this completes you should have both `aiorp` and `aiohttp` installed.

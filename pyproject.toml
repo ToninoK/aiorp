@@ -1,10 +1,10 @@
 [project]
 name = "aiorp"
-version = "0.1.0-alpha.3"
+version = "0.1.0-alpha.4"
 description = "A simple reverse proxy library based on aiohttp."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["aiohttp>=3.11.12"]
+dependencies = ["aiohttp>=3.11.12", "mkdocs-material>=9.6.12"]
 
 [build-system]
 requires = ["hatchling"]
@@ -34,7 +34,7 @@ multi_line_output = 3
 default_section = "THIRDPARTY"
 honor_noqa = true
 include_trailing_comma = true
-known_third_party = ["aiohttp", "aioresponses", "jwt", "multidict", "proxy", "pytest", "yarl"]
+known_third_party = ["aiohttp", "aioresponses", "jwt", "multidict", "pytest", "src", "yarl"]
 atomic = true
 
 [tool.pylint.master]
@@ -56,6 +56,11 @@ disable = [
   "protected-access",
   "redefined-outer-name",
 ]
+
+[tool.pylint.SIMILARITIES]
+ignore-imports = 'yes'
+ignore-docstrings = 'yes'
+ignore-comments = 'yes'
 
 [tool.pylint.reports]
 output-format = "colorized"
