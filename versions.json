@@ -3,18 +3,13 @@
     "version": "0.1.0-alpha.5",
     "title": "0.1.0-alpha.5",
     "aliases": [
-      "unstable",
-      "latest"
+      "latest",
+      "unstable"
     ]
   },
   {
     "version": "0.1.0-alpha.4",
     "title": "0.1.0-alpha.4",
-    "aliases": []
-  },
-  {
-    "version": "0.1.0-alpha.3",
-    "title": "0.1.0-alpha.3",
     "aliases": []
   }
 ]
