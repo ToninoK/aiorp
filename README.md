@@ -5,4 +5,4 @@ but also offering a simple interface to create a reverse-proxy with complex func
 
 NOTE: This package is still in development!
 
-Check out the [docs here](https://aiorp.ktonino.com/).
+Check out the [docs here](https://aiorp.ktonino.com/unstable).
