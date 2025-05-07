@@ -4,7 +4,9 @@ version = "0.1.0-alpha.5"
 description = "A simple reverse proxy library based on aiohttp."
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["aiohttp>=3.11.12", "mkdocs-material>=9.6.12"]
+dependencies = [
+    "aiohttp>=3.11.12",
+]
 
 [build-system]
 requires = ["hatchling"]
