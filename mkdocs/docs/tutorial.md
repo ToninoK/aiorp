@@ -39,7 +39,7 @@ These will be the target services we will proxy with our reverse-proxy.
 The prerequisite to our proxy is obviously something to proxy the requests to.
 Not to lose time on writing these, since it's not the point of the exercise,
 you can find the codes for the two example servers
-[here](https://github.com/ToninoK/aiorp/tree/master/examples/proxy/targets).
+[here](https://github.com/ToninoK/aiorp/tree/master/examples/tutorial/targets).
 
 Take some time to inspect them, see what endpoints they expose, and how they
 work. TL;DR: they have some CRUD endpoints expecting
@@ -223,7 +223,7 @@ transactions_ctx = ProxyContext(url=TRANSACTIONS_URL)  # (2)!
 transactions_handler = HTTPProxyHandler(context=transactions_ctx)  # (3)!
 
 
-@transactions_handler.default  # (4)!
+@transactions_handler.proxy  # (4)!
 async def transactions_auth(ctx: ProxyContext) -> AsyncGenerator[None, Any]:
     """Add transactions API key to requests"""
     ctx.request.headers["X-API-Key"] = TRANSACTIONS_API_KEY
